@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-7vphn@ey^c=gid=(-v2d_gg@$_-s%0(w8dz-yh!v%cot1a)b@3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -72,15 +72,19 @@ WSGI_APPLICATION = 'wms2.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'WMS2',
+#         'USER': 'postgres',
+#         'PASSWORD': 'kvan',
+#         'HOST': '127.0.0.1',
+#         'PORT': '5432',
+#     }
+# }
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'WMS2',
-        'USER': 'postgres',
-        'PASSWORD': 'kvan',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
 }
 
 # Password validation
