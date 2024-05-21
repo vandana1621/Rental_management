@@ -1,0 +1,911 @@
+{% include 'product_tracking/head.html' %}
+{% load static %}
+{% block content %}
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Ajax request to fetch category data
+        $.ajax({
+            url: '/role_list/', // Update the URL to your endpoint
+            type: 'GET',
+            success: function (data) {
+                // Function to populate the category table with data
+                $('#user-table-body').empty(); // Clear existing rows
+                $.each(data, function (index, role) {
+                    // Construct HTML for each row
+                    var row = '<tr>' +
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td style="display: none;">' + role.id + '</td>' + // Hidden category ID
+                        '<td>' + role.role_name + '</td>' +
+                        '<td>' + role.created_by + '</td>' +
+                        '<td>' + role.created_date + '</td>' +
+                        '<td>' +
+                        '<button class="btn btn-sm btn-primary edit-btn"><i class="fa fa-pencil"></i>Edit</button>' +
+                        '<button class="btn btn-sm btn-danger delete-btn"><i class="fa fa-trash"></i>Remove</button>' +
+                        '</td>' +
+                        '</tr>';
+                    $('#user-table-body').append(row); // Append row to the table body
+                });
+                updatePaginationCount(data.length);
+        },
+        error: function (xhr, status, error) {
+            console.error('Error fetching user data:', error);
+        }
+    });
+    });
+    function updatePaginationCount(count) {
+        // Assuming pagination count element has id 'pagination-count'
+        $('#pagination-count').text(count);
+    }
+    // Function to populate edit modal with category data
+    $(document).on('click', '.edit-btn', function() {
+        var row = $(this).closest('tr');
+        var roleId = row.find('td:eq(1)').text().trim();
+        var roleName = row.find('td:eq(2)').text().trim();
+
+
+        console.log("Category Id:", roleId);
+        console.log("category Name:", roleName);
+
+        // Populate modal with category data
+        $('#editCategoryId').val(roleId);
+        $('#editCategoryName').val(roleName);
+
+
+        // Show edit modal
+        $('#editCategoryModal').modal('show');
+
+    });
+
+
+  $(document).on('click', '#saveChangesBtn', function() {
+
+    updateCategoryInDatabase();
+  });
+
+  // Add event handler for the close button
+    $(document).on('click', '#closeFormBtn', function() {
+        // Hide or remove the form from the DOM
+
+            // Close the edit modal
+        $('#editCategoryModal').modal('hide'); // or $('#yourFormId').remove();
+    });
+// Function to update category in the database
+function updateCategoryInDatabase() {
+    // Retrieve values from modal form
+    var roleId = $('#editCategoryId').val();
+    var roleName = $('#editCategoryName').val().trim();
+
+
+    // Validate input
+    if (!roleName) {
+        console.error('Role name is required.');
+        return; // Exit function if roleName is empty
+    }
+    // Log the values before sending the AJAX request
+    console.log('roleName:', roleName);
+
+
+
+    // Construct the formData object manually
+    var formData = new FormData();
+    formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    formData.append('roleId', roleId);
+    formData.append('roleName', roleName);
+
+
+    console.log('Role ID:', roleId);
+    console.log('Role Name:', roleName);
+
+    console.log("FormData:", formData); // Log the formData object
+
+
+    // Send the AJAX request
+    $.ajax({
+        url: '/update_role/' + roleId + '/', // Update with your edit category URL
+        type: 'POST',
+        data: formData,
+        processData: false,  // Don't process the data (required for FormData)
+        contentType: false,  // Don't set content type (required for FormData)
+        success: function(response) {
+            // Handle success response
+            console.log(response);
+
+            // After successfully updating the category, reload the category list
+            fetchCategoryList();
+
+            // Close the edit modal
+            $('#editCategoryModal').modal('hide');
+
+        },
+        error: function(xhr, status, error) {
+            // Handle error response
+            console.error('Error updating category:', error);
+        }
+    });
+}
+
+    var fetchingData = false;
+
+    function fetchCategoryList() {
+        if (fetchingData) {
+            return; // Prevent double execution
+        }
+
+        fetchingData = true;
+
+        $.ajax({
+            url: '/role_list/',
+            type: 'GET',
+            success: function(data) {
+                console.log('User list fetched successfully:', data); // Add this line
+                // Clear existing table rows
+                $('#user-table-body').empty();
+                // Iterate over received data and append rows to table
+                $.each(data, function(index, role) {
+                    var row = '<tr>' +
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td style="display: none;">' + role.id + '</td>' + // Hidden category ID
+                        '<td><span>' + role.role_name + '</span></td>' +
+                        '<td><span>' + role.created_by + '</span></td>' +
+                        '<td><span>' + role.created_date + '</span></td>' +
+                        '<td>' +
+                        '<button class="btn btn-sm btn-primary edit-btn"><i class="fa fa-pencil"></i>Edit</button>' +
+                        '<button class="btn btn-sm btn-danger delete-btn"><i class="fa fa-trash"></i>Remove</button>' +
+                        '</td>' +
+                        '</tr>';
+                    $('#user-table-body').append(row);
+                });
+                updatePaginationCount(data.length);
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching data:', error);
+            },
+            complete: function() {
+                fetchingData = false;
+            }
+        });
+    }
+
+$(document).on('click', '.delete-btn', function() {
+        var row = $(this).closest('tr');
+        var roleId = row.find('td:eq(1)').text().trim(); // Get the category ID from the hidden <td>
+
+        console.log('User ID:', roleId);
+        // Display confirmation dialog before deleting
+        if (confirm('Are you sure you want to delete this category?')) {
+            // Get CSRF token from the cookie
+            var csrftoken = getCookie('csrftoken');
+
+            // Send AJAX request to delete category
+            $.ajax({
+                url: '/delete_role/' + roleId + '/', // Update with your delete category URL
+                type: 'POST',
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('X-CSRFToken', csrftoken); // Include CSRF token in request headers
+                },
+                success: function(response) {
+                    // Handle success response
+                    console.log(response);
+                    console.log("Delete User Successfully");
+
+                    // After successfully updating the category, reload the category list
+                    fetchCategoryList();
+                },
+                error: function(xhr, status, error) {
+                    // Handle error response
+                    console.error('Error deleting User:', error);
+                }
+            });
+        }
+});
+    // Function to get CSRF token from cookie
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    $(document).ready(function() {
+        fetchCategoryList();
+    });
+</script>
+<body>
+
+    <!--*******************
+        Preloader start
+    ********************-->
+   <div id="preloader">
+		<div class="lds-ripple">
+			<div></div>
+			<div></div>
+		</div>
+    </div>
+    <!--*******************
+        Preloader end
+    ********************-->
+
+    <!--**********************************
+        Main wrapper start
+    ***********************************-->
+    <div id="main-wrapper">
+        <!--**********************************
+            Nav header start
+        ***********************************-->
+         {% include 'product_tracking/navheader.html' %}
+        <!--**********************************
+            Nav header end
+        ***********************************-->
+
+		<!--**********************************
+            Chat box start
+        ***********************************-->
+		<div class="chatbox">
+			<div class="chatbox-close"></div>
+			<div class="custom-tab-1">
+
+				<ul class="nav nav-tabs">
+					<li class="nav-item">
+						<a class="nav-link" data-bs-toggle="tab" href="#notes">Notes</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" data-bs-toggle="tab" href="#alerts">Alerts</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link active" data-bs-toggle="tab" href="#chat">Chat</a>
+					</li>
+				</ul>
+				<div class="tab-content">
+					<div class="tab-pane fade active show" id="chat">
+						<div class="card mb-sm-3 mb-md-0 contacts_card dz-chat-user-box">
+							<div class="card-header chat-list-header text-center">
+								<a href="javascript:void(0);"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect fill="#000000" x="4" y="11" width="16" height="2" rx="1"/><rect fill="#000000" opacity="1.0" transform="translate(12.000000, 12.000000) rotate(-270.000000) translate(-12.000000, -12.000000) " x="4" y="11" width="16" height="2" rx="1"/></g></svg></a>
+								<div>
+									<h6 class="mb-1">Chat List</h6>
+									<p class="mb-0">Show All</p>
+								</div>
+								<a href="javascript:void(0);"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><circle fill="#000000" cx="5" cy="12" r="2"/><circle fill="#000000" cx="12" cy="12" r="2"/><circle fill="#000000" cx="19" cy="12" r="2"/></g></svg></a>
+							</div>
+							<div class="card-body contacts_body p-0 dz-scroll  " id="DZ_W_Contacts_Body">
+								<ul class="contacts">
+									<li class="name-first-letter">A</li>
+									<li class="active dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon"></span>
+											</div>
+											<div class="user_info">
+												<span>Archie Parker</span>
+												<p>Kalid is online</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Alfie Mason</span>
+												<p>Taherah left 7 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/3.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon"></span>
+											</div>
+											<div class="user_info">
+												<span>AharlieKane</span>
+												<p>Sami is online</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/4.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Athan Jacoby</span>
+												<p>Nargis left 30 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="name-first-letter">B</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/5.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Bashid Samim</span>
+												<p>Rashid left 50 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon"></span>
+											</div>
+											<div class="user_info">
+												<span>Breddie Ronan</span>
+												<p>Kalid is online</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Ceorge Carson</span>
+												<p>Taherah left 7 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="name-first-letter">D</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/3.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon"></span>
+											</div>
+											<div class="user_info">
+												<span>Darry Parker</span>
+												<p>Sami is online</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/4.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Denry Hunter</span>
+												<p>Nargis left 30 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="name-first-letter">J</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/5.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Jack Ronan</span>
+												<p>Rashid left 50 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon"></span>
+											</div>
+											<div class="user_info">
+												<span>Jacob Tucker</span>
+												<p>Kalid is online</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>James Logan</span>
+												<p>Taherah left 7 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/3.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon"></span>
+											</div>
+											<div class="user_info">
+												<span>Joshua Weston</span>
+												<p>Sami is online</p>
+											</div>
+										</div>
+									</li>
+									<li class="name-first-letter">O</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/4.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Oliver Acker</span>
+												<p>Nargis left 30 mins ago</p>
+											</div>
+										</div>
+									</li>
+									<li class="dz-chat-user">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont">
+												<img src="{% static 'product_tracking/images/avatar/5.jpg' %}" class="rounded-circle user_img" alt="">
+												<span class="online_icon offline"></span>
+											</div>
+											<div class="user_info">
+												<span>Oscar Weston</span>
+												<p>Rashid left 50 mins ago</p>
+											</div>
+										</div>
+									</li>
+								</ul>
+							</div>
+						</div>
+						<div class="card chat dz-chat-history-box d-none">
+							<div class="card-header chat-list-header text-center">
+								<a href="javascript:void(0);" class="dz-chat-history-back">
+									<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><polygon points="0 0 24 0 24 24 0 24"/><rect fill="#000000" opacity="0.3" transform="translate(15.000000, 12.000000) scale(-1, 1) rotate(-90.000000) translate(-15.000000, -12.000000) " x="14" y="7" width="2" height="10" rx="1"/><path d="M3.7071045,15.7071045 C3.3165802,16.0976288 2.68341522,16.0976288 2.29289093,15.7071045 C1.90236664,15.3165802 1.90236664,14.6834152 2.29289093,14.2928909 L8.29289093,8.29289093 C8.67146987,7.914312 9.28105631,7.90106637 9.67572234,8.26284357 L15.6757223,13.7628436 C16.0828413,14.136036 16.1103443,14.7686034 15.7371519,15.1757223 C15.3639594,15.5828413 14.7313921,15.6103443 14.3242731,15.2371519 L9.03007346,10.3841355 L3.7071045,15.7071045 Z" fill="#000000" fill-rule="nonzero" transform="translate(9.000001, 11.999997) scale(-1, -1) rotate(90.000000) translate(-9.000001, -11.999997) "/></g></svg>
+								</a>
+								<div>
+									<h6 class="mb-1">Chat with Khelesh</h6>
+									<p class="mb-0 text-success">Online</p>
+								</div>
+								<div class="dropdown">
+									<a href="javascript:void(0);" data-bs-toggle="dropdown" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><circle fill="#000000" cx="5" cy="12" r="2"/><circle fill="#000000" cx="12" cy="12" r="2"/><circle fill="#000000" cx="19" cy="12" r="2"/></g></svg></a>
+									<ul class="dropdown-menu dropdown-menu-end">
+										<li class="dropdown-item"><i class="fa fa-user-circle text-primary me-2"></i> View profile</li>
+										<li class="dropdown-item"><i class="fa fa-users text-primary me-2"></i> Add to btn-close friends</li>
+										<li class="dropdown-item"><i class="fa fa-plus text-primary me-2"></i> Add to group</li>
+										<li class="dropdown-item"><i class="fa fa-ban text-primary me-2"></i> Block</li>
+									</ul>
+								</div>
+							</div>
+							<div class="card-body msg_card_body dz-scroll" id="DZ_W_Contacts_Body3">
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										Hi, how are you samim?
+										<span class="msg_time">8:40 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-end mb-4">
+									<div class="msg_cotainer_send">
+										Hi Khalid i am good tnx how about you?
+										<span class="msg_time_send">8:55 AM, Today</span>
+									</div>
+									<div class="img_cont_msg">
+								<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										I am good too, thank you for your chat template
+										<span class="msg_time">9:00 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-end mb-4">
+									<div class="msg_cotainer_send">
+										You are welcome
+										<span class="msg_time_send">9:05 AM, Today</span>
+									</div>
+									<div class="img_cont_msg">
+								<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										I am looking for your next templates
+										<span class="msg_time">9:07 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-end mb-4">
+									<div class="msg_cotainer_send">
+										Ok, thank you have a good day
+										<span class="msg_time_send">9:10 AM, Today</span>
+									</div>
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										Bye, see you
+										<span class="msg_time">9:12 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										Hi, how are you samim?
+										<span class="msg_time">8:40 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-end mb-4">
+									<div class="msg_cotainer_send">
+										Hi Khalid i am good tnx how about you?
+										<span class="msg_time_send">8:55 AM, Today</span>
+									</div>
+									<div class="img_cont_msg">
+								<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										I am good too, thank you for your chat template
+										<span class="msg_time">9:00 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-end mb-4">
+									<div class="msg_cotainer_send">
+										You are welcome
+										<span class="msg_time_send">9:05 AM, Today</span>
+									</div>
+									<div class="img_cont_msg">
+								<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										I am looking for your next templates
+										<span class="msg_time">9:07 AM, Today</span>
+									</div>
+								</div>
+								<div class="d-flex justify-content-end mb-4">
+									<div class="msg_cotainer_send">
+										Ok, thank you have a good day
+										<span class="msg_time_send">9:10 AM, Today</span>
+									</div>
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/2.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+								</div>
+								<div class="d-flex justify-content-start mb-4">
+									<div class="img_cont_msg">
+										<img src="{% static 'product_tracking/images/avatar/1.jpg' %}" class="rounded-circle user_img_msg" alt="">
+									</div>
+									<div class="msg_cotainer">
+										Bye, see you
+										<span class="msg_time">9:12 AM, Today</span>
+									</div>
+								</div>
+							</div>
+							<div class="card-footer type_msg">
+								<div class="input-group">
+									<textarea class="form-control" placeholder="Type your message..."></textarea>
+									<div class="input-group-append">
+										<button type="button" class="btn btn-primary"><i class="fa fa-location-arrow"></i></button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="tab-pane fade" id="alerts">
+						<div class="card mb-sm-3 mb-md-0 contacts_card">
+							<div class="card-header chat-list-header text-center">
+								<a href="javascript:void(0);"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><circle fill="#000000" cx="5" cy="12" r="2"/><circle fill="#000000" cx="12" cy="12" r="2"/><circle fill="#000000" cx="19" cy="12" r="2"/></g></svg></a>
+								<div>
+									<h6 class="mb-1">Notications</h6>
+									<p class="mb-0">Show All</p>
+								</div>
+								<a href="javascript:void(0);"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><path d="M14.2928932,16.7071068 C13.9023689,16.3165825 13.9023689,15.6834175 14.2928932,15.2928932 C14.6834175,14.9023689 15.3165825,14.9023689 15.7071068,15.2928932 L19.7071068,19.2928932 C20.0976311,19.6834175 20.0976311,20.3165825 19.7071068,20.7071068 C19.3165825,21.0976311 18.6834175,21.0976311 18.2928932,20.7071068 L14.2928932,16.7071068 Z" fill="#000000" fill-rule="nonzero" opacity="1"/><path d="M11,16 C13.7614237,16 16,13.7614237 16,11 C16,8.23857625 13.7614237,6 11,6 C8.23857625,6 6,8.23857625 6,11 C6,13.7614237 8.23857625,16 11,16 Z M11,18 C7.13400675,18 4,14.8659932 4,11 C4,7.13400675 7.13400675,4 11,4 C14.8659932,4 18,7.13400675 18,11 C18,14.8659932 14.8659932,18 11,18 Z" fill="#000000" fill-rule="nonzero"/></g></svg></a>
+							</div>
+							<div class="card-body contacts_body p-0 dz-scroll" id="DZ_W_Contacts_Body1">
+								<ul class="contacts">
+									<li class="name-first-letter">SEVER STATUS</li>
+									<li class="active">
+										<div class="d-flex bd-highlight">
+											<div class="img_cont primary">KK</div>
+											<div class="user_info">
+												<span>David Nester Birthday</span>
+												<p class="text-primary">Today</p>
+											</div>
+										</div>
+									</li>
+									<li class="name-first-letter">SOCIAL</li>
+									<li>
+										<div class="d-flex bd-highlight">
+											<div class="img_cont success">RU</div>
+											<div class="user_info">
+												<span>Perfection Simplified</span>
+												<p>Jame Smith commented on your status</p>
+											</div>
+										</div>
+									</li>
+									<li class="name-first-letter">SEVER STATUS</li>
+									<li>
+										<div class="d-flex bd-highlight">
+											<div class="img_cont primary">AU</div>
+											<div class="user_info">
+												<span>AharlieKane</span>
+												<p>Sami is online</p>
+											</div>
+										</div>
+									</li>
+									<li>
+										<div class="d-flex bd-highlight">
+											<div class="img_cont info">MO</div>
+											<div class="user_info">
+												<span>Athan Jacoby</span>
+												<p>Nargis left 30 mins ago</p>
+											</div>
+										</div>
+									</li>
+								</ul>
+							</div>
+							<div class="card-footer"></div>
+						</div>
+					</div>
+					<div class="tab-pane fade" id="notes">
+						<div class="card mb-sm-3 mb-md-0 note_card">
+							<div class="card-header chat-list-header text-center">
+								<a href="javascript:void(0);"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect fill="#000000" x="4" y="11" width="16" height="2" rx="1"/><rect fill="#000000" opacity="1.0" transform="translate(12.000000, 12.000000) rotate(-270.000000) translate(-12.000000, -12.000000) " x="4" y="11" width="16" height="2" rx="1"/></g></svg></a>
+								<div>
+									<h6 class="mb-1">Notes</h6>
+									<p class="mb-0">Add New Nots</p>
+								</div>
+								<a href="javascript:void(0);"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><path d="M14.2928932,16.7071068 C13.9023689,16.3165825 13.9023689,15.6834175 14.2928932,15.2928932 C14.6834175,14.9023689 15.3165825,14.9023689 15.7071068,15.2928932 L19.7071068,19.2928932 C20.0976311,19.6834175 20.0976311,20.3165825 19.7071068,20.7071068 C19.3165825,21.0976311 18.6834175,21.0976311 18.2928932,20.7071068 L14.2928932,16.7071068 Z" fill="#000000" fill-rule="nonzero" opacity="1"/><path d="M11,16 C13.7614237,16 16,13.7614237 16,11 C16,8.23857625 13.7614237,6 11,6 C8.23857625,6 6,8.23857625 6,11 C6,13.7614237 8.23857625,16 11,16 Z M11,18 C7.13400675,18 4,14.8659932 4,11 C4,7.13400675 7.13400675,4 11,4 C14.8659932,4 18,7.13400675 18,11 C18,14.8659932 14.8659932,18 11,18 Z" fill="#000000" fill-rule="nonzero"/></g></svg></a>
+							</div>
+							<div class="card-body contacts_body p-0 dz-scroll" id="DZ_W_Contacts_Body2">
+								<ul class="contacts">
+									<li class="active">
+										<div class="d-flex bd-highlight">
+											<div class="user_info">
+												<span>New order placed..</span>
+												<p>10 Aug 2020</p>
+											</div>
+											<div class="ms-auto">
+												<a href="javascript:void(0);" class="btn btn-primary btn-xs sharp me-1"><i class="fas fa-pencil-alt"></i></a>
+												<a href="javascript:void(0);" class="btn btn-danger btn-xs sharp"><i class="fa fa-trash"></i></a>
+											</div>
+										</div>
+									</li>
+									<li>
+										<div class="d-flex bd-highlight">
+											<div class="user_info">
+												<span>Youtube, a video-sharing website..</span>
+												<p>10 Aug 2020</p>
+											</div>
+											<div class="ms-auto">
+												<a href="javascript:void(0);" class="btn btn-primary btn-xs sharp me-1"><i class="fas fa-pencil-alt"></i></a>
+												<a href="javascript:void(0);" class="btn btn-danger btn-xs sharp"><i class="fa fa-trash"></i></a>
+											</div>
+										</div>
+									</li>
+									<li>
+										<div class="d-flex bd-highlight">
+											<div class="user_info">
+												<span>john just buy your product..</span>
+												<p>10 Aug 2020</p>
+											</div>
+											<div class="ms-auto">
+												<a href="javascript:void(0);" class="btn btn-primary btn-xs sharp me-1"><i class="fas fa-pencil-alt"></i></a>
+												<a href="javascript:void(0);" class="btn btn-danger btn-xs sharp"><i class="fa fa-trash"></i></a>
+											</div>
+										</div>
+									</li>
+									<li>
+										<div class="d-flex bd-highlight">
+											<div class="user_info">
+												<span>Athan Jacoby</span>
+												<p>10 Aug 2020</p>
+											</div>
+											<div class="ms-auto">
+												<a href="javascript:void(0);" class="btn btn-primary btn-xs sharp me-1"><i class="fas fa-pencil-alt"></i></a>
+												<a href="javascript:void(0);" class="btn btn-danger btn-xs sharp"><i class="fa fa-trash"></i></a>
+											</div>
+										</div>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!--**********************************
+            Chat box End
+        ***********************************-->
+
+		<!--**********************************
+            Header start
+        ***********************************-->
+		{% include 'product_tracking/header.html' %}
+        <!--**********************************
+            Header end ti-comment-alt
+        ***********************************-->
+
+        <!--**********************************
+            Sidebar start
+        ***********************************-->
+       {% include 'product_tracking/sidebar.html' %}
+
+        <!--**********************************
+            Sidebar end
+        ***********************************-->
+
+		<!--**********************************
+            Content body start
+        ***********************************-->
+        <div class="content-body">
+            <!-- row -->
+			<div class="page-titles">
+				<ol class="breadcrumb">
+					<li><h5 class="bc-title">Accounts & HR</h5></li>
+					<li class="breadcrumb-item"><a href="javascript:void(0)">
+						<svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+							<path d="M2.125 6.375L8.5 1.41667L14.875 6.375V14.1667C14.875 14.5424 14.7257 14.9027 14.4601 15.1684C14.1944 15.4341 13.8341 15.5833 13.4583 15.5833H3.54167C3.16594 15.5833 2.80561 15.4341 2.53993 15.1684C2.27426 14.9027 2.125 14.5424 2.125 14.1667V6.375Z" stroke="#2C2C2C" stroke-linecap="round" stroke-linejoin="round"/>
+							<path d="M6.375 15.5833V8.5H10.625V15.5833" stroke="#2C2C2C" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+						Employee </a>
+					</li>
+					<!-- <li class="breadcrumb-item active"><a href="javascript:void(0)">Employee</a></li> -->
+				</ol>
+
+			</div>
+
+            <div class="modal fade" id="editCategoryModal" tabindex="-1" role="dialog" aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editCategoryModalLabel">Edit User Details</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Category Model Form -->
+                        <form id="editCategoryForm">
+                            <div class="form-group">
+                                <label for="editCategoryName">User Name</label>
+                                <input type="text" class="form-control" id="editCategoryName" name="editCategoryName">
+                            </div>
+                            <input type="hidden" id="editCategoryId" class="pagination-count">
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="closeFormBtn">Close</button>
+                        <button type="button" class="btn btn-primary update-category " id="saveChangesBtn">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+			<div class="container-fluid">
+				<div class="row">
+					<div class="col-xl-12">
+						<div class="card">
+							<div class="card-body p-0">
+								<div class="table-responsive active-projects style-1">
+								<div class="tbl-caption">
+									<h4 class="heading mb-0">Role Master</h4>
+									<div>
+										<a class="btn btn-primary btn-sm" data-bs-toggle="offcanvas" href="#offcanvasExample" role="button" aria-controls="offcanvasExample">+ Add User</a>
+									</div>
+								</div>
+									<table id="empoloyees-tblwrapper" class="table">
+										<thead>
+											<tr>
+												<th>SR NO</th>
+												<th>Role Name</th>
+												<th>Created By</th>
+												<th>Created Date</th>
+												<th>Action</th>
+											</tr>
+										</thead>
+										<tbody id="user-table-body">
+
+										</tbody>
+
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+			</div>
+        </div>
+
+        <!--**********************************
+            Content body end
+        ***********************************-->
+
+<div class="offcanvas offcanvas-end customeoff" tabindex="-1" id="offcanvasExample">
+    <div class="offcanvas-header">
+        <h5 class="modal-title" id="#gridSystemModal">Add Role Name</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="container-fluid">
+				<form action="{% url 'add_role' %}" method="POST">
+                    {% csrf_token %}
+					<div class="row">
+						<div class="col-xl-6 mb-3">
+							<label for="exampleFormControlInput2" class="form-label">Role Name<span class="text-danger">*</span></label>
+							<input type="text" class="form-control" id="exampleFormControlInput2" name="name" placeholder="name" required>
+						</div>
+					</div>
+					<div>
+						<button class="btn btn-primary me-1">Submit</button>
+						<button class="btn btn-danger light ms-1">Cancel</button>
+					</div>
+                </form>
+        </div>
+    </div>
+</div>
+
+        <!--**********************************
+            Footer start
+        ***********************************-->
+        {% include 'product_tracking/footer.html' %}
+        <!--**********************************
+            Footer end
+        ***********************************-->
+
+
+		<!--**********************************
+           Support ticket button start
+        ***********************************-->
+		
+        <!--**********************************
+           Support ticket button end
+        ***********************************-->
+
+
+	</div>
+    <!--**********************************
+        Main wrapper end
+    ***********************************-->
+
+    <!--**********************************
+        Scripts
+    ***********************************-->
+
+	
+</body>
+{% endblock %}
