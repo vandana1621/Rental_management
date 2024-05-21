@@ -1,5 +1,7 @@
  <!-- Head Section -->
 {% include 'product_tracking/head.html' %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 {% load static %}
 {% block content %}
 <body>
@@ -604,23 +606,41 @@
                         </div>
                     </div>
                     <!-- BEGIN MODAL -->
-                    <div class="modal fade none-border" id="event-modal">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h4 class="modal-title"><strong>Add New Event</strong></h4>
-                                </div>
-                                <div class="modal-body"></div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-default waves-effect" data-bs-dismiss="modal">Close</button>
-                                    <button type="button" class="btn btn-success save-event waves-effect waves-light">Create
-                                        event</button>
-
-                                    <button type="button" class="btn btn-danger delete-event waves-effect waves-light" data-bs-toggle="modal">Delete</button>
+                    <!-- Modal for Adding Events -->
+                        <div class="modal fade none-border" id="event-modal">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h4 class="modal-title"><strong>Add New Event</strong></h4>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form id="add-event-form">
+                                            <div class="mb-3">
+                                                <label for="event-title" class="form-label">Event Title</label>
+                                                <input type="text" class="form-control" id="event-title" name="event-title" placeholder="Event Title">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="event-description" class="form-label">Event Description</label>
+                                                <textarea class="form-control" id="event-description" name="event-description" placeholder="Event Description"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="event-location" class="form-label">Event Location</label>
+                                                <input type="text" class="form-control" id="event-location" name="event-location" placeholder="Event Location">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="event-time" class="form-label">Event Time</label>
+                                                <input type="time" class="form-control" id="event-time" name="event-time">
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-default waves-effect" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-success save-event waves-effect waves-light" id="save-event">Create event</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+
                     <!-- Modal Add Category -->
                     <div class="modal fade none-border" id="add-category">
                         <div class="modal-dialog modal-dialog-centered">
@@ -681,4 +701,42 @@
     ***********************************-->
 
 </body>
+     <script>
+        "use strict";
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                events: [],
+                editable: true,
+                droppable: true, // this allows things to be dropped onto the calendar
+            });
+
+            calendar.render();
+
+            // Handle event creation
+            document.getElementById('save-event').addEventListener('click', function() {
+                var title = document.getElementById('event-title').value;
+                var description = document.getElementById('event-description').value;
+                var location = document.getElementById('event-location').value;
+                var time = document.getElementById('event-time').value;
+
+                if (title) {
+                    calendar.addEvent({
+                        title: title,
+                        description: description,
+                        location: location,
+                        start: time ? moment().format('YYYY-MM-DD') + 'T' + time : moment().format('YYYY-MM-DD')
+                    });
+                    // Clear form fields
+                    document.getElementById('add-event-form').reset();
+                    // Close the modal
+                    $('#event-modal').modal('hide');
+                } else {
+                    alert('Event title is required');
+                }
+            });
+        });
+    </script>
 {% endblock %}
