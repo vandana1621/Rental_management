@@ -21,16 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-7vphn@ey^c=gid=(-v2d_gg@$_-s%0(w8dz-yh!v%cot1a)b@3'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-7vphn@ey^c=gid=(-v2d_gg@$_-s%0(w8dz-yh!v%cot1a)b@3')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-DATABASES = {
-    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
-}
-
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*'] if DEBUG else ['steward-tekvan.herokuapp.com']
 
 # Application definition
 
@@ -42,10 +38,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'product_tracking.apps.ProductTrackingConfig',
+    'whitenoise.runserver_nostatic',  # Whitenoise
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Whitenoise middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -77,18 +75,9 @@ WSGI_APPLICATION = 'wms2.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'WMS2',
-#         'USER': 'postgres',
-#         'PASSWORD': 'kvan',
-#         'HOST': '127.0.0.1',
-#         'PORT': '5432',
-#     }
-# }
-
+DATABASES = {
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -123,17 +112,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = '/static/'
-
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'product_tracking/static')]
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-
+# Media files
 MEDIA_URL = '/media/'
-
-MEDIA_ROOT = 'C:/Users/vandana ajara/Desktop/New folder/wms2/wms2/product_tracking/media/uploads'
-
-# LOGIN_URL = 'product_tracking:login_view'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'product_tracking/media/uploads')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
