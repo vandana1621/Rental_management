@@ -25,6 +25,10 @@ SECRET_KEY = 'django-insecure-7vphn@ey^c=gid=(-v2d_gg@$_-s%0(w8dz-yh!v%cot1a)b@3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+DATABASES = {
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
+}
+
 ALLOWED_HOSTS = ['*']
 
 # Application definition
@@ -83,9 +87,7 @@ WSGI_APPLICATION = 'wms2.wsgi.application'
 #         'PORT': '5432',
 #     }
 # }
-DATABASES = {
-    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
-}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
