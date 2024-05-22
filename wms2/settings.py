@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-7vphn@ey^c=gid=(-v2d_gg@$_-s%0(w8dz-yh!v%cot1a)b@3')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG ='True'
 
 ALLOWED_HOSTS = ['steward-tekvan-b978d127adc4.herokuapp.com', 'localhost', '127.0.0.1']
 
