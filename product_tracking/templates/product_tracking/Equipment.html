@@ -1,0 +1,956 @@
+{% include 'product_tracking/head.html' %}
+{% load static %}
+{% block content %}
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        .text-success {
+            color: green;
+        }
+
+        .text-danger {
+            color: red;
+        }
+
+        .btn-group {
+            margin-right: 10px; /* Adjust the margin as needed */
+        }
+
+        .attribute-column {
+            background-color: #f2f2f2; /* Grey background color */
+        }
+
+        .value-column {
+            background-color: #ffffff; /* White background color */
+        }
+
+        .tooltip-inner {
+            background-color: #5a5a5a;
+            color: #fff;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .tooltip.bs-tooltip-top .arrow::before,
+        .tooltip.bs-tooltip-auto[x-placement^="top"] .arrow::before {
+            border-top-color: #5a5a5a;
+        }
+
+        .tooltip.bs-tooltip-bottom .arrow::before,
+        .tooltip.bs-tooltip-auto[x-placement^="bottom"] .arrow::before {
+            border-bottom-color: #5a5a5a;
+        }
+
+        .tooltip.bs-tooltip-left .arrow::before,
+        .tooltip.bs-tooltip-auto[x-placement^="left"] .arrow::before {
+            border-left-color: #5a5a5a;
+        }
+
+        .tooltip.bs-tooltip-right .arrow::before,
+        .tooltip.bs-tooltip-auto[x-placement^="right"] .arrow::before {
+            border-right-color: #5a5a5a;
+        }
+    </style>
+<script>
+$(document).ready(function () {
+    var fetchingData = false;
+    let currentPage = 1;
+    const pageSize = 10;
+    $('[data-toggle="tooltip"]').tooltip();
+    fetchEquipmentList();
+
+    function fetchEquipmentList() {
+        const equipmentListData = document.getElementById('equipment-list-data').textContent;
+        let equipmentlist = [];
+
+        try {
+            equipmentlist = JSON.parse(equipmentListData);
+        } catch (e) {
+            console.error("Error parsing JSON data: ", e);
+            return;
+        }
+
+        const totalItems = equipmentlist.length;  // Get the total number of equipment
+        const totalPages = Math.ceil(totalItems / pageSize);  // Calculate total pages
+
+        const paginatedEquipment = equipmentlist.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+        console.log("Equipment Listing:", paginatedEquipment);
+
+        $('#equipment-table-body').empty(); // Ensure the table body is empty before appending new rows
+        $.each(paginatedEquipment, function (index, equipment) {
+            const row = `<tr>
+                <td>${((currentPage - 1) * pageSize + index + 1)}</td>
+                <td style="display: none;">${equipment.id}</td>
+                <td class="equipment-name" data-equipment-id="${equipment.id}"><a href="#">${equipment.equipment_name}</a></td>
+                <td>${equipment.type}</td>
+                <td>${equipment.sub_category_name}</td>
+                <td>${equipment.category_type}</td>
+               <td><img src="/media/${equipment.attachment}" alt="Equipment Image" width="70" height="60"></td>
+                <td id="stock-status-${equipment.id}">${equipment.status ? 'Active' : 'Inactive'}</td>
+                <td>${equipment.created_by}</td>
+                <td>${equipment.created_date}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary edit-btn me-2" data-toggle="tooltip" title="Edit Equipment" ><i class="fa fa-pencil"></i></button>
+                    <button class="btn btn-sm btn-danger delete-btn me-2" data-toggle="tooltip" title="Delete Equipment"><i class="fa fa-trash"></i></button>
+                    <button class="btn btn-sm btn-primary vendor-btn btn-group" data-toggle="tooltip" title="Add Stock and Serial number "><i class="fa fa-add"></i></button>
+                </td>
+            </tr>`;
+            $('#equipment-table-body').append(row);
+        });
+
+        updatePaginationControls(totalItems, currentPage, totalPages);
+        //$('[data-toggle="tooltip"]').tooltip(); // Re-initialize tooltips
+    }
+
+    function updatePaginationControls(totalItems, currentPage, totalPages) {
+        $('#pagination-controls').html('');
+
+        if (currentPage > 1) {
+            $('#pagination-controls').append('<button id="prev-page-btn" class="btn btn-primary">Previous</button>');
+        }
+
+        if (currentPage < totalPages) {
+            $('#pagination-controls').append('<button id="next-page-btn" class="btn btn-primary">Next</button>');
+        }
+
+        const startItem = (currentPage - 1) * pageSize + 1;
+        const endItem = Math.min(currentPage * pageSize, totalItems);
+
+        $('#pagination-count').text(`Showing ${startItem} to ${endItem} of ${totalItems} entries`);
+    }
+
+    $(document).on('click', '#prev-page-btn', function () {
+        if (currentPage > 1) {
+            currentPage--;
+            fetchEquipmentList();
+        }
+    });
+
+    $(document).on('click', '#next-page-btn', function () {
+        currentPage++;
+        fetchEquipmentList();
+    });
+
+  {% comment %}  $(document).on('click', '.equipment-name a', function (e) {
+       e.preventDefault();
+       var equipmentId = $(this).closest('.equipment-name').data('equipment-id');
+       console.log('Redirecting to /equipment_detail/?equipment_id=' + equipmentId); // Debugging line
+       window.location.href = '/equipment_detail/?equipment_id=' + equipmentId;
+    });{% endcomment %}
+
+// equipment values show and href is equipment name
+$(document).ready(function () {
+    // Click event handler for equipment links
+    $('.equipment-name a').click(function (e) {
+        e.preventDefault(); // Prevent default link behavior
+
+        var equipmentId = $(this).closest('.equipment-name').data('equipment-id');
+        var modalSelector = '#equipmentDetailsModal';
+
+        // Remove previous modal if exists
+        $(modalSelector).remove();
+
+        // AJAX call to fetch equipment details
+        $.ajax({
+            url: '/get_dimension_list/' + equipmentId + '/',
+            type: 'GET',
+            success: function (response) {
+                // Check if data is returned successfully
+                if (response.error) {
+                    console.error('Error:', response.error);
+                    return;
+                }
+
+                var popupContent = `
+                    <div class="modal fade" id="equipmentDetailsModal" tabindex="-1" role="dialog" aria-labelledby="equipmentDetailsModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="equipmentDetailsModalLabel">Equipment Details</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-sm-6">
+                                            <h6>Dimensions & Other Details</h6>
+                                            <ul>
+                                                <li><strong>Height:</strong> ${response.dimension_height}</li>
+                                                <li><strong>Width:</strong> ${response.dimension_width}</li>
+                                                <li><strong>Length:</strong> ${response.dimension_length}</li>
+                                                <li><strong>Volume:</strong> ${response.volume}</li>
+                                                <li><strong>Weight:</strong> ${response.weight}</li>
+                                                <li><strong>HSN No:</strong> ${response.hsn_no}</li>
+                                                <li><strong>Country Of Origin:</strong> ${response.country_origin}</li>
+                                                <li><strong>Status:</strong> ${response.status ? 'Active' : 'Inactive'}</li>
+                                                <li><strong>Created By:</strong> ${response.created_by}</li>
+                                                <li><strong>Created Date:</strong> ${response.created_date}</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <h6>Stock Details</h6>
+                                            <ul>
+                                                <li><strong>Vendor Name:</strong> ${response.vender_name}</li>
+                                                <li><strong>Purchase Date:</strong> ${response.purchase_date}</li>
+                                                <li><strong>Unit Price:</strong> ${response.unit_price}</li>
+                                                <li><strong>Rental Price:</strong> ${response.rental_price}</li>
+                                                <li><strong>Reference No:</strong> ${response.reference_no}</li>
+                                                <li><strong>Unit:</strong> ${response.unit}</li>
+                                            </ul>
+                                            <table class="table">
+                                                <tr>
+                                                    <th style="text-align: center;">Serial No</th>
+                                                    <th style="text-align: center;">Barcode No</th>
+                                                </tr>`;
+
+                if (response.serial_no && response.barcode_no && response.serial_no.length > 0) {
+                    for (var i = 0; i < response.serial_no.length; i++) {
+                        popupContent += `
+                            <tr style="text-align: center;">
+                                <td>${response.serial_no[i] ? response.serial_no[i] : '-'}</td>
+                                <td>${response.barcode_no[i] ? response.barcode_no[i] : '-'}</td>
+                            </tr>`;
+                    }
+                } else {
+                    popupContent += `
+                        <tr>
+                            <td style="text-align: center;">-</td>
+                            <td style="text-align: center;">-</td>
+                        </tr>`;
+                }
+
+                popupContent += `
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-danger light" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                $('body').append(popupContent);
+                $('#equipmentDetailsModal').modal('show');
+            },
+            error: function (xhr, status, error) {
+                console.error('Error:', error);
+            }
+        });
+    });
+});
+
+
+    // Click event handler for the cancel button
+    $('#cancelButton').click(function () {
+        // Hide the form
+        $('#offcanvasExample').offcanvas('hide');
+    });
+
+    // Event for calculating the volume
+    $('.dimension').on('input', function () {
+        calculateVolume();
+    });
+
+    function calculateVolume() {
+        var dimension_h = parseFloat(document.getElementById('dimension_h').value);
+        var dimension_w = parseFloat(document.getElementById('dimension_w').value);
+        var dimension_l = parseFloat(document.getElementById('dimension_l').value);
+        var volumeField = document.getElementById('volume');
+
+        if (!isNaN(dimension_h) && !isNaN(dimension_w) && !isNaN(dimension_l)) {
+            var volume = dimension_h * dimension_w * dimension_l;
+            volumeField.value = volume;
+        } else {
+            volumeField.value = '';
+        }
+    }
+
+    // Add button dropdown section
+    console.log('Sending AJAX request...');
+    $.ajax({
+        url: '/subcategory_dropdown/',
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+            console.log('Received sub category:', data.subcategories);
+            var dropdown = $('#exampleFormControlInput3');
+            dropdown.empty();
+            console.log('Dropdown:', dropdown);
+            dropdown.append($('<option></option>').attr('value', '').text('Select Sub Category'));
+            $.each(data.subcategories, function (index, subcategory) {
+                console.log('Adding sub category:', subcategory);
+                dropdown.append($('<option></option>').attr('value', subcategory.id).text(subcategory.name));
+            });
+        },
+        error: function (xhr, status, error) {
+            console.error('Error fetching Employees:', error);
+        }
+    });
+
+    // Add change event listener to the dropdown
+    $('#exampleFormControlInput3').on('change', function () {
+        var selectedSubcategory = $(this).val(); // Get the selected subcategory id
+        // Make an AJAX call to fetch category name based on the selected subcategory
+        $.ajax({
+            url: '/get_category_name/',
+            type: 'GET',
+            dataType: 'json',
+            data: { subcategory_id: selectedSubcategory },
+            success: function (response) {
+                console.log('Received category name:', response.category_name);
+                // Update the category name input box
+                $('#exampleFormControlInput4').val(response.category_name);
+            },
+            error: function (xhr, status, error) {
+                console.error('Error fetching category name:', error);
+            }
+        });
+    });
+
+    // Function to populate edit modal with category data
+    $(document).on('click', '.edit-btn', function () {
+        var row = $(this).closest('tr');
+        var employeeId = row.find('td:eq(1)').text().trim();
+        var employeeName = row.find('td:eq(2)').text().trim();
+        var subCategory = row.find('td:eq(4)').text().trim();
+        var categoryType = row.find('td:eq(5)').text().trim();
+        var equipmentType = row.find('td:eq(6)').text().trim();
+        var statusText = row.find('td:eq(15)').text().trim();
+
+        console.log("Equipment Id:", employeeId);
+        console.log("Equipment Name:", employeeName);
+        console.log("Equipment sub category name:", subCategory);
+        console.log("Retrieved Status:", statusText);
+
+        // Populate modal with category data
+        $('#editCategoryId').val(employeeId);
+        $('#editCategoryName').val(employeeName);
+        $('#editSubCategoryName').val(subCategory);
+        $('#editCategoryType').val(categoryType);
+        $('#editEquipmentType').val(equipmentType);
+        $('#editCategoryStatus').val(statusText).change();
+
+        // Show edit modal
+        $('#editCategoryModal').modal('show');
+
+        // Set default status value
+        $('select[name="statusText"]').val('1');
+
+        // Unbind previous change event listener
+        $('#editSubCategoryName').off('change');
+
+        // Bind change event listener to the dropdown
+        $('#editSubCategoryName').on('change', function () {
+            var selectedSubcategory = $(this).val(); // Get the selected subcategory id
+            // Make an AJAX call to fetch category name based on the selected subcategory
+            $.ajax({
+                url: '/edit_get_category_name/',
+                type: 'GET',
+                dataType: 'json',
+                data: { subcategory_id: selectedSubcategory },
+                success: function (response) {
+                    console.log('Received category name:', response.category_name);
+                    // Update the category name input box
+                    $('#editCategoryType').val(response.category_name);
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error fetching category name:', error);
+                }
+            });
+        });
+
+        console.log('Sending AJAX request...');
+        $.ajax({
+            url: '/edit_subcategory_dropdown/',
+            type: 'GET',
+            dataType: 'json',
+            success: function (data) {
+                console.log('Received sub category:', data.sub);
+                var dropdown = $('#editSubCategoryName');
+                dropdown.empty(); // Clear existing options before adding new ones
+                console.log('Dropdown:', dropdown);
+                console.log('subcategory:', subCategory);
+                // Add the subcategory row value to the top of the dropdown options
+                dropdown.append($('<option></option>').attr('value', subCategory).text(subCategory));
+                // Add other options from the AJAX response
+                $.each(data.sub, function (index, subcategories) {
+                    if (subcategories.name !== subCategory) {
+                        dropdown.append($('<option></option>').attr('value', subcategories.id).text(subcategories.name));
+                    }
+                });
+            },
+            error: function (xhr, status, error) {
+                console.error('Error fetching subcategories:', error);
+            }
+        });
+    });
+
+    $(document).on('click', '#saveChangesBtn', function () {
+        updateCategoryInDatabase();
+    });
+
+    // Function to update category in the database
+    function updateCategoryInDatabase() {
+        var employeeId = $('#editCategoryId').val();
+        var employeeName = $('#editCategoryName').val().trim();
+        var subCategory = $('#editSubCategoryName').val().trim();
+        var categoryType = $('#editCategoryType').val().trim();
+        var equipmentType = $('#editEquipmentType').val().trim();
+        var statusText = $('#editCategoryStatus').val();
+
+        var formData = new FormData();
+        formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        formData.append('employeeId', employeeId);
+        formData.append('employeeName', employeeName);
+        formData.append('subCategory', subCategory);
+        formData.append('categoryType', categoryType);
+        formData.append('equipmentType', equipmentType);
+        formData.append('statusText', statusText);
+
+        $.ajax({
+            url: '/update_equipment/' + employeeId + '/',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                fetchEquipmentList();
+                $('#editCategoryModal').modal('hide');
+            },
+            error: function (xhr, status, error) {
+                console.error('Error updating category:', error);
+            }
+        });
+    }
+
+    $(document).on('click', '.delete-btn', function () {
+        var row = $(this).closest('tr');
+        var equipmentId = row.find('td:eq(1)').text().trim();
+
+        if (confirm('Are you sure you want to delete this Equipment?')) {
+            var csrftoken = getCookie('csrftoken');
+
+            $.ajax({
+                url: '/delete_equipment_list/' + equipmentId + '/',
+                type: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('X-CSRFToken', csrftoken);
+                },
+                success: function (response) {
+                    fetchEquipmentList(); // Fetch the updated equipment list
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error deleting Equipment:', error);
+                }
+            });
+        }
+    });
+
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    $(document).on('click', '#closeFormBtn', function () {
+        $('#editCategoryModal').modal('hide');
+    });
+
+    $(document).on('click', '#closeFormBtn', function () {
+        $('#editVendorModal').modal('hide');
+    });
+
+    $(document).on('click', '.close', function () {
+        $('#stockModal').modal('hide');
+    });
+
+    $(document).on('click', '.vendor-btn', function () {
+        var row = $(this).closest('tr');
+        var equipmentId = row.find('td:eq(1)').text().trim();
+
+        $('#editVendorId').val(equipmentId);
+        $('#equipmentIdInput').val(equipmentId);
+        $('#editVendorModal').modal('show');
+
+        function generateInputColumns(num) {
+            var container = document.getElementById('serialNumberInputsContainer');
+            container.innerHTML = '';
+
+            for (var i = 0; i < num; i++) {
+                var inputDiv = document.createElement('div');
+                inputDiv.className = 'row';
+
+                var serialNumberDiv = document.createElement('div');
+                serialNumberDiv.className = 'col-xl-6 mb-3';
+
+                var labelSerial = document.createElement('label');
+                labelSerial.htmlFor = 'serialNumber' + (i + 1);
+                labelSerial.className = 'form-label';
+                labelSerial.textContent = 'Serial Number ' + (i + 1);
+
+                var inputSerial = document.createElement('input');
+                inputSerial.type = 'text';
+                inputSerial.className = 'form-control';
+                inputSerial.id = 'serialNumber' + (i + 1);
+                inputSerial.name = 'serialNumber' + (i + 1);
+
+                serialNumberDiv.appendChild(labelSerial);
+                serialNumberDiv.appendChild(inputSerial);
+                inputDiv.appendChild(serialNumberDiv);
+
+                var barcodeDiv = document.createElement('div');
+                barcodeDiv.className = 'col-xl-6 mb-3';
+
+                var labelBarcode = document.createElement('label');
+                labelBarcode.htmlFor = 'barcode' + (i + 1);
+                labelBarcode.className = 'form-label';
+                labelBarcode.textContent = 'Barcode Number ' + (i + 1);
+
+                var inputBarcode = document.createElement('input');
+                inputBarcode.type = 'text';
+                inputBarcode.className = 'form-control';
+                inputBarcode.id = 'barcodeNumber' + (i + 1);
+                inputBarcode.name = 'barcodeNumber' + (i + 1);
+
+                barcodeDiv.appendChild(labelBarcode);
+                barcodeDiv.appendChild(inputBarcode);
+                inputDiv.appendChild(barcodeDiv);
+
+                container.appendChild(inputDiv);
+            }
+        }
+
+        document.getElementById('editUnit').addEventListener('input', function () {
+            var num = parseInt(this.value);
+            generateInputColumns(num);
+        });
+    });
+
+    $(document).on('click', '#saveChanges', function () {
+        var equipmentId = $('#equipmentIdInput').val();
+
+        $.ajax({
+            url: '/insert_vendor/' + equipmentId,
+            method: 'POST',
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                equipmentId: equipmentId
+            },
+            success: function (response) {
+                console.log("Equipment ID inserted into database successfully");
+            },
+            error: function (xhr, status, error) {
+                console.error("Error inserting equipment ID into database:", error);
+            }
+        });
+    });
+});
+</script>
+
+
+
+    <body>
+
+    <!--*******************
+        Preloader start
+    ********************-->
+    <div id="preloader">
+        <div class="lds-ripple">
+            <div></div>
+            <div></div>
+        </div>
+    </div>
+    <!--*******************
+        Preloader end
+    ********************-->
+
+    <!--**********************************
+        Main wrapper start
+    ***********************************-->
+    <div id="main-wrapper">
+        <!--**********************************
+            Nav header start
+        ***********************************-->
+        {% include 'product_tracking/navheader.html' %}
+        <!--**********************************
+            Nav header end
+        ***********************************-->
+
+        <!--**********************************
+            Chat box start
+        ***********************************-->
+
+        <!--**********************************
+            Chat box End
+        ***********************************-->
+
+        <!--**********************************
+            Header start
+        ***********************************-->
+        {% include 'product_tracking/header.html' %}
+        <!--**********************************
+            Header end ti-comment-alt
+        ***********************************-->
+
+        <!--**********************************
+            Sidebar start
+        ***********************************-->
+        {% include 'product_tracking/sidebar.html' %}
+
+        <!--**********************************
+            Sidebar end
+        ***********************************-->
+
+        <!--**********************************
+            Content body start
+        ***********************************-->
+        <div class="content-body">
+            <!-- row -->
+            <div class="page-titles">
+                <ol class="breadcrumb">
+                    <li><h5 class="bc-title" style="color: #0c0c0c;">Equipment List</h5></li>
+                    <li class="breadcrumb-item"><a href="javascript:void(0)">
+                        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.125 6.375L8.5 1.41667L14.875 6.375V14.1667C14.875 14.5424 14.7257 14.9027 14.4601 15.1684C14.1944 15.4341 13.8341 15.5833 13.4583 15.5833H3.54167C3.16594 15.5833 2.80561 15.4341 2.53993 15.1684C2.27426 14.9027 2.125 14.5424 2.125 14.1667V6.375Z"
+                                  stroke="#2C2C2C" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6.375 15.5833V8.5H10.625V15.5833" stroke="#2C2C2C" stroke-linecap="round"
+                                  stroke-linejoin="round"/>
+                        </svg>
+                        Home </a>
+                    </li>
+                </ol>
+                <div>
+                    <a class="btn btn-primary btn-sm" data-bs-toggle="offcanvas" href="#offcanvasExample" role="button"
+                       aria-controls="offcanvasExample">+ Add Equipment</a>
+                </div>
+            </div>
+
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-xl-12">
+                        <div class="card">
+                            <div class="card-header">
+                                 <h4 class="card-title mb-0">Equipment List </h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive table-card">
+                                    <table class="table primary-table-bordered">
+                                        <thead class="thead-primary">
+                                        <tr>
+                                            <th>SR NO</th>
+                                            <th>Equipment Name</th>
+                                            <th>Equipment Type</th>
+                                            <th>Sub Category</th>
+                                            <th>Category</th>
+                                            <th>Image</th>
+                                            <th>Stock In Status</th>
+                                            <th>Added By</th>
+                                            <th>Added Date</th>
+                                            <th>Action</th>
+                                        </tr>
+                                        </thead>
+                                       <tbody id="equipment-table-body">
+
+                                        </tbody>
+
+                                    </table>
+                                </div>
+                            </div>
+                             <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div id="pagination-count" style="padding: 10px;">Showing 0 to 0 of 0 entries</div>
+                                        <div style="padding-bottom: 10px;margin: 5px;">
+                                            <button id="prev-page-btn" class="btn btn-primary me-2">Previous</button>
+                                            <button id="next-page-btn" class="btn btn-primary">Next</button>
+                                        </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!--**********************************
+            Content body end
+        ***********************************-->
+
+
+        <!--**********************************
+            Footer start
+        ***********************************-->
+        {% include 'product_tracking/footer.html' %}
+        <!--**********************************
+            Footer end
+        ***********************************-->
+        <!-- Edit Equipment Details -->
+        <div class="modal fade" id="editCategoryModal" tabindex="-1" role="dialog"
+             aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editCategoryModalLabel">Edit Employee</h5>
+
+                    </div>
+                    <div class="modal-body">
+                        <!-- Category Model Form -->
+                        <form id="editCategoryForm">
+
+                            <div class="row">
+                                <div class="col-xl-3 mb-3">
+                                    <label for="editCategoryName">Equipment Name</label>
+                                    <input type="text" class="form-control" id="editCategoryName" name="employeeName">
+                                </div>
+                                <div class="col-xl-3 mb-3">
+                                    <label for="editSubCategoryName" class="form-label">Sub Category Name</label>
+                                    <select class="form-control" id="editSubCategoryName" name="subCategory">
+                                        {% for subcategories in sub %}
+                                            <option value="{{ subcategories.name }}">{{ subcategories.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-xl-3 mb-3">
+                                    <label for="editCategoryType" class="form-label">Category Name</label>
+                                    <input type="text" class="form-control" id="editCategoryType" name="categoryType">
+                                </div>
+                                <div class="col-xl-3 mb-3">
+                                    <label for="editEquipmentType" class="form-label">Equipment Type<span
+                                            class="text-danger">*</span></label>
+                                    <select class="default-select form-control" id="editEquipmentType"
+                                            name="equipmentType">
+                                        <option value="Moniter">Moniter</option>
+                                        <option value="Slit Speaker">Slit Speaker</option>
+                                        <option value="SubWoofer">SubWoofer</option>
+                                        <option value="Top">Top</option>
+                                    </select>
+                                </div>
+                                <div class="col-xl-3 mb-3">
+                                    <label for="editCategoryStatus">Status</label>
+                                    <select class="default-select form-control" id="editCategoryStatus"
+                                            name="statusText">
+                                        <option value="1">Active</option>
+                                        <option value="0">Inactive</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="editCategoryId" class="pagination-count">
+                            </div>
+
+
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="closeFormBtn">Close</button>
+                        <button type="button" class="btn btn-primary" id="saveChangesBtn">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Equipment Details -->
+        <div class="offcanvas offcanvas-end customeoff" tabindex="-1" id="offcanvasExample">
+            <div class="offcanvas-header">
+                <h5 class="modal-title" id="#gridSystemModal">Add Equipment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="offcanvas-body">
+                <form action="{% url 'add_equipment' %}" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div>
+                            <h3>General Information</h3>
+                            <hr/>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput2" class="form-label">Equipment Name<span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="exampleFormControlInput2" name="equipment_name"
+                                   placeholder="Equipment Name" required>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput3" class="form-label">Sub Category Name<span
+                                    class="text-danger">*</span></label>
+                            <select class="form-control" name="subcategory_name" id="exampleFormControlInput3" required>
+                                {#                            <option data-display="Select">Select Status</option>#}
+                                {% for subcategory in subcategories %}
+                                    <option value="{{ subcategory.id }}">{{ subcategory.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput4" class="form-label">Category Type<span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="exampleFormControlInput4" name="category_name"
+                                   placeholder="" required>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput4" class="form-label">Type<span
+                                    class="text-danger">*</span></label>
+                            <select class="default-select form-control" name="type" required>
+                                <option value="Moniter">Moniter</option>
+                                <option value="Sleet Speaker">Sleet Speaker</option>
+                                <option value="SubWoofer">SubWoofer</option>
+                                <option value="Top">Top</option>
+                            </select>
+                        </div>
+                        <div>
+                            <h3>Physical Measurements</h3>
+                            <hr/>
+                        </div>
+                       <div class="col-xl-3 mb-3">
+                            <label class="form-label">Dimension(H)</label>
+                            <input type="text" class="form-control dimension" id="dimension_h" name="dimension_h" placeholder="">
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label class="form-label">Dimension(W)</label>
+                            <input type="text" class="form-control dimension" id="dimension_w" name="dimension_w" placeholder="">
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label class="form-label">Dimension(L)</label>
+                            <input type="text" class="form-control dimension" id="dimension_l" name="dimension_l" placeholder="">
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label class="form-label">Volume</label>
+                            <input type="text" class="form-control" id="volume" name="volume" placeholder="" readonly>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput88" class="form-label">Weight</label>
+                            <input type="text" class="form-control" id="exampleFormControlInput88" name="weight"
+                                   placeholder="">
+                        </div>
+
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput88" class="form-label">HSN NO<span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="exampleFormControlInput88" name="hsn_no"
+                                   required>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="exampleFormControlInput88" class="form-label">Country of Origin</label>
+                            <input type="text" class="form-control" id="exampleFormControlInput88" name="country_origin"
+                                   placeholder="">
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="default-select form-control" name="status">
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-xl-6 mb-3">
+                            <label class="form-label">Attachment</label>
+                            <input type="file" name="attachment" id="attachment" accept=".jpg, .jpeg, .png">
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary me-1">Submit</button>
+                        <button class="btn btn-danger light ms-1" id="cancelButton">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- End Add Employee Section -->
+
+    <!-- Vendor Details Form section -->
+    <div class="modal fade" id="editVendorModal" tabindex="-1" role="dialog" aria-labelledby="editVendorModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editVendorModalLabel">Add Vendor Details</h5>
+                </div>
+                <div class="modal-body">
+                    <form action="{% url 'insert_vendor' %}" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row">
+                            <input type="hidden" id="equipmentIdInput" name="equipmentId">
+
+                            <div class="col-xl-4 mb-3">
+                                <label for="vendor_name">Vendor Name<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="vendor_name" name="vendor_name" required>
+                            </div>
+                            <div class="col-xl-4 mb-3">
+                                <label for="purchase_date" class="form-label">Purchase Date<span
+                                        class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="purchase_date" name="purchase_date"
+                                       required>
+                            </div>
+                            <div class="col-xl-4 mb-3">
+                                <label for="unit_price" class="form-label">Unit Price<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="unit_price" name="unit_price" required>
+                            </div>
+                            <div class="col-xl-4 mb-3">
+                                <label for="rental_price" class="form-label">Rental Price<span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="rental_price" name="rental_price" required>
+                            </div>
+                            <div class="col-xl-4 mb-3">
+                                <label for="reference_no" class="form-label">Reference No<span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="reference_no" name="reference_no" required>
+                            </div>
+                            <div class="col-xl-4 mb-3">
+                                <label for="attachment" class="form-label">Attachment</label>
+                                <input type="file" name="attachment" id="attachment" accept=".pdf">
+                                <div id="attachmentError" class="text-danger" style="display: none;"></div>
+                            </div>
+                            <div class="col-xl-4 mb-3">
+                                <label for="editUnit" class="form-label">Unit</label>
+                                <input type="text" class="form-control" id="editUnit" name="unitValue" required>
+                            </div>
+                            <div id="serialNumberInputsContainer">
+                                <!-- Serial Number input boxes will be dynamically generated here -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" id="closeFormBtn">Close</button>
+                            <button type="submit" class="btn btn-primary" id="saveChanges">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {#</div>#}
+
+
+    <!-- End Vendor Details Form Section -->
+
+    <!--**********************************
+       Support ticket button start
+    ***********************************-->
+
+    <!--**********************************
+       Support ticket button end
+    ***********************************-->
+
+    <!--**********************************
+        Main wrapper end
+    ***********************************-->
+
+    <!--**********************************
+        Scripts
+    ***********************************-->
+
+    </body>
+   <script type="application/json" id="equipment-list-data">{{ equipment_listing|safe }}</script>
+
+{% endblock %}

@@ -1,0 +1,203 @@
+{% include 'product_tracking/head.html' %}
+{% load static %}
+{% block content %}
+
+<link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let currentPage = 1;
+    const pageSize = 10;
+    let totalItems = 0;
+
+    $(document).ready(function () {
+        fetchCategories();
+
+        $('#categoryDropdown').change(function () {
+            currentPage = 1;
+            var selectedCategory = $(this).val();
+            fetchEquipmentList(selectedCategory);
+        });
+
+        function fetchEquipmentList(category) {
+            const startIndex = (currentPage - 1) * pageSize;
+
+            console.log(`Fetching data for category: ${category}, startIndex: ${startIndex}, pageSize: ${pageSize}`);
+
+            $.ajax({
+                url: '/fetch-equipment-list/',
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                data: {
+                    category_type: category,
+                    start: startIndex,
+                    limit: pageSize
+                },
+                success: function (response) {
+                    console.log('Response:', response);
+                    totalItems = response.totalItems;
+                    displayEquipmentList(response.data);
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error fetching data:', error);
+                }
+            });
+        }
+        function fetchCategories() {
+            $.ajax({
+                url: '/category_dropdown/',
+                type: 'GET',
+                success: function (data) {
+                    console.log('Categories:', data);
+                    $('#categoryDropdown').empty();
+                    //$('#categoryDropdown').append('<option value="">Select category</option>');  // Default option
+                    $.each(data.categories, function (index, category) {
+                        $('#categoryDropdown').append('<option value="' + category.id + '">' + category.name + '</option>');
+                    });
+
+                    // Automatically select the first category and fetch equipment list
+                    if (data.categories.length > 0) {
+                        const firstCategoryId = data.categories[0].id;
+                        $('#categoryDropdown').val(firstCategoryId).change();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error fetching data:', error);
+                }
+            });
+        }
+
+        function displayEquipmentList(equipmentList) {
+            console.log('Displaying equipment list:', equipmentList);
+            $('#category-table-body').empty();
+            $.each(equipmentList, function (index, equipment) {
+                var row = '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td>' + equipment.category_type + '</td>' +
+                    '<td>' + equipment.sub_category_name + '</td>' +
+                    '<td>' + equipment.equipment_name + '</td>' +
+                    '<td>' + equipment.total_units + '</td>' +
+                    '<td>' + equipment.unit_price + '</td>' +
+                    '<td>' + equipment.rental_price + '</td>' +
+                    '</tr>';
+                $('#category-table-body').append(row);
+            });
+            updatePaginationCount(totalItems);
+        }
+
+        function updatePaginationCount(totalItems) {
+            const totalPages = Math.ceil(totalItems / pageSize);
+            $('#pagination-count').text(`Showing ${Math.min(currentPage * pageSize - pageSize + 1, totalItems)} to ${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} entries`);
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            $('#prev-page-btn').prop('disabled', currentPage === 1);
+            $('#next-page-btn').prop('disabled', currentPage === totalPages);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        $('#prev-page-btn').click(function () {
+            if (currentPage > 1) {
+                currentPage--;
+                fetchEquipmentList($('#categoryDropdown').val());
+            }
+        });
+
+        $('#next-page-btn').click(function () {
+            if ((currentPage * pageSize) < totalItems) {
+                currentPage++;
+                fetchEquipmentList($('#categoryDropdown').val());
+            }
+        });
+
+        fetchEquipmentList($('#categoryDropdown').val());
+    });
+</script>
+
+<body data-typography="poppins" data-theme-version="light" data-layout="vertical" data-nav-headerbg="black" data-headerbg="color_1">
+
+<div id="preloader">
+    <div class="lds-ripple">
+        <div></div>
+        <div></div>
+    </div>
+</div>
+
+<div id="main-wrapper">
+    {% include 'product_tracking/navheader.html' %}
+    {% include 'product_tracking/header.html' %}
+    {% include 'product_tracking/sidebar.html' %}
+
+    <div class="content-body">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-xl-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="card-title mb-0">Stock List</h4>
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <label for="name" class="card-title mb-0">Category:</label>
+                                </div>
+                                <div class="col-auto">
+                                    <select class="form-select btn-sm me-1" aria-label="Default select example" id="categoryDropdown" style="width: 140px;">
+                                        <option value="">Select category</option>
+                                        <option value="Audio">Audio</option>
+                                        <option value="Lights">Lights</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="table-responsive table-card">
+                                <table class="table primary-table-bordered" id="contact-table">
+                                    <thead class="thead-primary" style="text-align: center;">
+                                        <tr>
+                                            <th scope="col">SR NO</th>
+                                            <th scope="col">Category</th>
+                                            <th scope="col">Sub Category</th>
+                                            <th scope="col">Equipment Name</th>
+                                            <th scope="col">Current Qty</th>
+                                            <th scope="col">Rental Price</th>
+                                            <th scope="col">Purchase Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="category-table-body" style="text-align: center;">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div id="pagination-count" style="padding: 10px;">Showing 0 to 0 of 0 entries</div>
+                            <div style="padding-bottom: 10px; margin: 5px;">
+                                <button id="prev-page-btn" class="btn btn-primary me-2">Previous</button>
+                                <button id="next-page-btn" class="btn btn-primary">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% include 'product_tracking/footer.html' %}
+    </div>
+</div>
+</body>
+
+{% endblock %}

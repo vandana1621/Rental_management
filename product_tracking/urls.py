@@ -21,7 +21,7 @@ urlpatterns = [
     path('category_list/', views.category_list, name='category_list'),
     path('update_category/<int:category_id>/', views.update_category, name='update_category'),
     path('delete_category/<int:category_id>/', views.delete_category, name='delete_category'),
-    path('sub_category/', views.sub_category, name='sub_category'),
+    path('sub_category/<int:category_id>/', views.subcategory_list, name='subcategory_list'),
     path('category_dropdown/', views.category_dropdown, name='category_dropdown'),
     path('add_sub_category/', views.add_sub_category, name='add_sub_category'),
     path('subcategory_list/', views.subcategory_list, name='subcategory_list'),
@@ -35,4 +35,21 @@ urlpatterns = [
     path('add_employee/', views.add_employee, name='add_employee'),
     path('employee_dropdown/', views.employee_dropdown, name='employee_dropdown'),
     path('employee_list/', views.employee_list, name='employee_list'),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    path('add_equipment/', views.add_equipment, name='add_equipment'),
+    path('equipment_list/', views.equipment_list, name='equipment_list'),
+    path('equipment_list/<int:subcategory_id>/', views.equipment_list, name='equipment_list'),
+    path('delete_equipment_list/<int:id>/', views.delete_equipment_list, name='delete_equipment_list'),
+    path('edit_subcategory_dropdown/', views.edit_subcategory_dropdown, name='edit_subcategory_dropdown'),
+    path('edit_get_category_name/', views.edit_get_category_name, name='edit_get_category_name'),
+    path('update_equipment/<int:id>/', views.update_equipment, name='update_equipment'),
+    path('fetch_stock_status/<int:equipment_id>/', views.fetch_stock_status, name='fetch_stock_status'),
+    path('fetch_serial_barcode_no/<int:equipment_id>/', views.fetch_serial_barcode_no, name='fetch_serial_barcode_no'),
+    path('get_dimension_list/<int:equipment_id>/', views.get_dimension_list, name='get_dimension_list'),
+    path('insert_vendor/', views.insert_vendor, name='insert_vendor'),
+    path('subcategory_dropdown/', views.subcategory_dropdown, name='subcategory_dropdown'),
+    path('get_category_name/', views.get_category_name, name='get_category_name'),
+    path('Stock_list/', views.Stock_list, name='Stock_list'),
+    path('fetch-equipment-list/', views.fetch_equipment_list, name='fetch_equipment_list'),
+]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
