@@ -73,19 +73,19 @@ WSGI_APPLICATION = 'wms2.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-     'default': {
-         'ENGINE': 'django.db.backends.postgresql',
-         'NAME': 'WMS2',
-         'USER': 'postgres',
-         'PASSWORD': 'kvan',
-         'HOST': '127.0.0.1',
-         'PORT': '5432',
-     }
- }
 # DATABASES = {
-#     'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
-# }
+#      'default': {
+#          'ENGINE': 'django.db.backends.postgresql',
+#          'NAME': 'WMS2',
+#          'USER': 'postgres',
+#          'PASSWORD': 'kvan',
+#          'HOST': '127.0.0.1',
+#          'PORT': '5432',
+#      }
+#  }
+DATABASES = {
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
