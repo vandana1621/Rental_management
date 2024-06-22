@@ -1,0 +1,941 @@
+{% include 'product_tracking/head.html' %}
+{% load static %}
+{% block content %}
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Fetch status counts
+            $.ajax({
+                url: '/get_status_counts/',
+                type: 'GET',
+                success: function (response) {
+                    $('#perfoma-count').text(response.perfoma_count);
+                    $('#prepsheet-count').text(response.prepsheet_count);
+                    $('#quatation-count').text(response.quatation_count);
+                    $('#DeliveryChallan-count').text(response.deliveryChallan_count);
+                    console.log('count of perfoma:', response.perfoma_count);
+                },
+                error: function (xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+
+            // Cancel button functionality
+            $('#cancelButton').click(function () {
+                $('#offcanvasExample').offcanvas('hide');
+            });
+
+            let currentPage = 1;
+            const pageSize = 10;
+            let totalItems = 0;
+
+            // Fetch job list
+            function fetchJobList() {
+                const startIndex = (currentPage - 1) * pageSize;
+                const endIndex = startIndex + pageSize;
+
+                $.ajax({
+                    url: '/jobs_list/',
+                    type: 'GET',
+                    success: function (data) {
+                        totalItems = data.length;
+                        const currentPageData = data.slice(startIndex, endIndex);
+                        $('#category-table-body').empty();
+                        $.each(currentPageData, function (index, jobs) {
+                            var row = '<tr>' +
+                                '<td>' + (index + 1) + '</td>' +
+                                '<td style="display: none;">' + jobs.id + '</td>' +
+                                '<td>' + jobs.job_reference_no + '</a></td>' +
+                                '<td>' + jobs.title + '</td>' +
+                                '<td>' + jobs.status + '</td>' +
+                                '<td>' +
+                                '<button class="btn btn-sm btn-primary edit-btn spaced-btn me-2"><i class="fa fa-pencil"></i></button>' +
+                                '<button class="btn btn-sm btn-danger delete-btn spaced-btn"><i class="fa fa-trash"></i></button>' +
+                                '</td>' +
+                                '</tr>';
+                            $('#category-table-body').append(row);
+
+                            console.log('fetched jobs id:', jobs.id)
+                        });
+                        updatePaginationCount(data.length);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching job data:', error);
+                    }
+                });
+            }
+
+            // Edit button functionality
+            $(document).on('click', '.edit-btn', function () {
+                var row = $(this).closest('tr');
+                var jobId = row.find('td:eq(1)').text().trim();
+                var jobReferenceNo = row.find('td:eq(2)').text().trim();
+                var title = row.find('td:eq(3)').text().trim();
+                var status = row.find('td:eq(4)').text().trim();
+
+                console.log("Jobs Id:", jobId);
+                console.log("Jobs Reference No:", jobReferenceNo);
+                console.log("Jobs title:", title);
+                console.log("Retrieved Status:", status);
+
+                $('#editJobsId').val(jobId);
+                $('#editJobsReferenceNo').val(jobReferenceNo);
+                $('#editJobsTitle').val(title);
+                $('#editJobsStatus').val(status);
+
+                $('#editJobsModal').modal('show');
+            });
+
+            // Save changes button functionality
+            $(document).on('click', '#saveChangesBtn', function () {
+                updateCategoryInDatabase();
+            });
+
+            // Update job in database
+            function updateCategoryInDatabase() {
+                var jobId = $('#editJobsId').val();
+                var jobReferenceNo = $('#editJobsReferenceNo').val().trim();
+                var title = $('#editJobsTitle').val().trim();
+                var status = $('#editJobsStatus').val();
+
+                console.log("Update Jobs Id:", jobId);
+                console.log("Job Reference No:", jobReferenceNo);
+                console.log("Jobs Title Name:", title);
+                console.log("Retrieved Status:", status);
+
+                var formData = new FormData();
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                formData.append('jobId', jobId);
+                formData.append('jobReferenceNo', jobReferenceNo);
+                formData.append('title', title);
+                formData.append('status', status);
+
+                console.log("FormData Job Id:", jobId);
+                console.log("FormData Job Reference No:", jobReferenceNo);
+                console.log("Job Title:", title);
+                console.log("Retrieved Status:", status);
+                console.log("FormData:", formData);
+
+                // Send the AJAX request
+                $.ajax({
+                    url: '/update_jobs/' + jobId + '/',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        console.log(response);
+                        fetchJobList();
+                        $('#editJobsModal').modal('hide');
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error updating job:', error);
+                    }
+                });
+            }
+
+            // Update pagination count
+            function updatePaginationCount(totalItems) {
+                const totalPages = Math.ceil(totalItems / pageSize);
+                $('#pagination-count').text(`Showing ${currentPage * pageSize - pageSize + 1} to ${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} entries`);
+
+                if (currentPage > totalPages) {
+                    currentPage = totalPages;
+                }
+            }
+
+            // Delete button functionality
+            $(document).on('click', '.delete-btn', function () {
+                var row = $(this).closest('tr');
+                var jobId = row.find('td:eq(1)').text().trim();
+                console.log('fetch the job Id:', jobId)
+
+                if (confirm('Are you sure you want to delete this job?')) {
+                    var csrftoken = getCookie('csrftoken');
+
+                    $.ajax({
+                        url: '/delete_jobs/' + jobId + '/',
+                        type: 'POST',
+                        beforeSend: function (xhr) {
+                            xhr.setRequestHeader('X-CSRFToken', csrftoken);
+                        },
+                        success: function (response) {
+                            console.log(response);
+                            fetchJobList();
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('Error deleting job:', error);
+                        }
+                    });
+                }
+            });
+
+            // Get CSRF token
+            function getCookie(name) {
+                var cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // Fetch job list on page load
+            fetchJobList();
+
+            // Pagination button functionality
+            $('#prev-page-btn').click(function () {
+                if (currentPage > 1) {
+                    currentPage--;
+                    fetchJobList();
+                }
+            });
+
+            $('#next-page-btn').click(function () {
+                const totalPages = Math.ceil(totalItems / pageSize);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    fetchJobList();
+                }
+            });
+
+            // Fetch master categories
+            function fetchMasterCategories() {
+                $.ajax({
+                    url: '/fetch_master_categories/',
+                    type: 'GET',
+                    success: function (data) {
+                        var masterCategories = data.master_categories;
+                        window.masterCategories = masterCategories;
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching master categories:', error);
+                    }
+                });
+            }
+
+            // Fetch equipment names
+            function fetchEquipmentNames() {
+                $.ajax({
+                    url: '/fetch_equipment_names/',
+                    type: 'GET',
+                    success: function (data) {
+                        var equipmentNames = data.equipment_names;
+                        window.equipmentNames = equipmentNames;
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching equipment names:', error);
+                    }
+                });
+            }
+
+            // Calculate number of days
+            function calculateNumberOfDays() {
+                var startDate = $('#showStart').val();
+                var endDate = $('#showEnd').val();
+
+                if (startDate && endDate) {
+                    var start = new Date(startDate);
+                    var end = new Date(endDate);
+                    var timeDiff = Math.abs(end - start);
+                    var diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                    $('#equipment-table tbody tr').each(function () {
+                        $(this).find('.number_of_days').val(diffDays);
+                    });
+                }
+            }
+
+            // Add row to equipment table
+            function addRow() {
+                var masterCategoryOptions = window.masterCategories.map(function (category) {
+                    return '<option value="' + category.category_id + '">' + category.category_name + '</option>';
+                }).join('');
+
+                var equipmentNameOptions = '<option value="" selected>Select Equipment</option>';
+                equipmentNameOptions += window.equipmentNames.map(function (equipment) {
+                    return '<option value="' + equipment.id + '" style="width: auto">' + equipment.equipment_name + '</option>';
+                }).join('');
+
+                var newRow = '<tr>' +
+                    '<td><select type="text" class="form-control master-category-dropdown" name="category_name">' + masterCategoryOptions + '</select></td>' +
+                    '<td><select type="text" class="form-control equipment-name-dropdown" name="equipment_name" style="width: auto">' + equipmentNameOptions + '</select></td>' +
+                    '<td><input type="number" class="form-control quantity" min="1" name="quantity"></td>' +
+                    '<td><input type="number" class="form-control number_of_days" name="number_of_days"></td>' +
+                    '<td><input type="number" class="form-control amount" name="amount"></td>' +
+                    '<td><button class="bi bi-check-square-fill save-row-btn" style="color: green;"></button></td>' +
+                    '<td><button class="btn btn-danger remove-row-btn">×</button></td>' +
+                    '</tr>';
+
+                $('#equipment-table tbody').append(newRow);
+
+                calculateNumberOfDays();
+            }
+
+            // Fetch rental price
+            function fetchRentalPrice(equipmentId, amountField) {
+                $.ajax({
+                    url: '/fetch_rental_price/',
+                    type: 'GET',
+                    data: {equipment_id: equipmentId},
+                    success: function (data) {
+                        amountField.val(data.rental_price);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching rental price:', error);
+                    }
+                });
+            }
+
+            // Remove row from equipment table
+            $('#equipment-table').on('click', '.remove-row-btn', function () {
+                $(this).closest('tr').remove();
+
+                var category = $(this).closest('tr').find('.master-category-dropdown').val();
+                var equipment = $(this).closest('tr').find('.equipment-name-dropdown').val();
+                var quantity = $(this).closest('tr').find('.quantity').val();
+                var days = $(this).closest('tr').find('.number_of_days').val();
+                var amount = $(this).closest('tr').find('.amount').val();
+
+                deleteRowFromTempTable(category, equipment, quantity, days, amount);
+            });
+
+            // Equipment name dropdown change event
+            $('#equipment-table').on('change', '.equipment-name-dropdown', function () {
+                var equipmentId = $(this).val();
+                var amountField = $(this).closest('tr').find('.amount');
+                fetchRentalPrice(equipmentId, amountField);
+            });
+
+            // Date input change event to calculate number of days
+            $('#showStart, #showEnd').change(function () {
+                calculateNumberOfDays();
+            });
+
+            // Save button click event
+            $('#equipment-table').on('click', '.save-row-btn', function (event) {
+                event.preventDefault();
+                var row = $(this).closest('tr');
+                var rowData = {
+                    category: row.find('.master-category-dropdown').val(),
+                    equipment: row.find('.equipment-name-dropdown').val(),
+                    quantity: row.find('.quantity').val(),
+                    days: row.find('.number_of_days').val(),
+                    amount: row.find('.amount').val()
+                };
+                console.log('fetch the row Data:', rowData)
+
+                var formData = {
+                    title: $('#titleInput').val(),
+                    client_name: $('#clientNameDropdown').val(),
+                    venue_address: $('#venueAddressDropdown').val(),
+                    status: $('#status').val(),
+                    crew_type: $('#crew_type').val().join(','),
+                    no_of_container: $('#input-box').val(),
+                    employee: $('#employee').val().join(','),
+                    setup_date: $('#prepDate').val(),
+                    rehearsal_date: $('#outDate').val(),
+                    start_date: $('#showStart').val(),
+                    end_date: $('#showEnd').val()
+                };
+                console.log('Fetch the Form Data:', formData)
+
+                var combinedData = {...rowData, ...formData};
+                console.log('Fetch the Combine Data:', combinedData)
+
+                saveRowData(combinedData);
+            });
+
+            // Function to save row data
+            function saveRowData(combinedData) {
+                $.ajax({
+                    url: '/save_row_data/',
+                    type: 'POST',
+                    data: {
+                        title: combinedData.title,
+                        client_name: combinedData.client_name,
+                        venue_address: combinedData.venue_address,
+                        status: combinedData.status,
+                        crew_type: combinedData.crew_type,
+                        no_of_container: combinedData.no_of_container,
+                        employee: combinedData.employee,
+                        setup_date: combinedData.setup_date,
+                        rehearsal_date: combinedData.rehearsal_date,
+                        start_date: combinedData.start_date,
+                        end_date: combinedData.end_date,
+                        category_name: combinedData.category,
+                        equipment_name: combinedData.equipment,
+                        quantity: combinedData.quantity,
+                        number_of_days: combinedData.days,
+                        amount: combinedData.amount,
+                        csrfmiddlewaretoken: getCookie('csrftoken')
+                    },
+                    success: function (response) {
+                        alert('Row saved successfully');
+                        console.log('Row data saved successfully:', response);
+                        console.log('Row data saved successfully:', combinedData.employee, combinedData.crew_type, combinedData.no_of_container)
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error saving row data:', error);
+                    }
+                });
+            }
+
+            // Function to delete row data from the temp table
+            function deleteRowFromTempTable(category, equipment, quantity, days, amount) {
+                $.ajax({
+                    url: '/delete_row_from_temp_table/',
+                    type: 'POST',
+                    data: {
+                        category: category,
+                        equipment: equipment,
+                        quantity: quantity,
+                        days: days,
+                        amount: amount,
+                        csrfmiddlewaretoken: getCookie('csrftoken')
+                    },
+                    success: function (response) {
+                        console.log('Row data deleted successfully:', response);
+                        alert('Row data deleted successfully.')
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error deleting row data:', error);
+                    }
+                });
+            }
+
+            // Fetch master categories and equipment names on page load
+            fetchMasterCategories();
+            fetchEquipmentNames();
+            calculateNumberOfDays();
+
+            // Add row button click event
+            $('#add-row-btn').click(function (event) {
+                event.preventDefault();
+                addRow();
+            });
+
+            // Fetch venue addresses and client names for dropdowns
+            function fetchVenueAddresses() {
+                $.ajax({
+                    url: '/fetch_venue_addresses/',
+                    type: 'GET',
+                    success: function (data) {
+                        var venueAddresses = data.venue_addresses;
+                        var dropdownMenu = $('#venueAddressDropdown').next('.dropdown-menu');
+                        dropdownMenu.empty();
+
+                        $.each(venueAddresses, function (index, address) {
+                            dropdownMenu.append('<li><a class="dropdown-item" href="#" style="width: 370px">' + address + '</a></li>');
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching venue addresses:', error);
+                    }
+                });
+            }
+
+            function fetchClientName() {
+                $.ajax({
+                    url: '/fetch_client_name/',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        var clientNames = data.client_names;
+                        var dropdownMenu = $('#clientNameDropdown').next('.dropdown-menu');
+                        dropdownMenu.empty();
+
+                        $.each(clientNames, function (index, name) {
+                            dropdownMenu.append('<li><a class="dropdown-item" href="#" style="width: 370px">' + name + '</a></li>');
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching client names:', error);
+                    }
+                });
+            }
+
+            fetchVenueAddresses();
+            fetchClientName();
+
+            $('#clientNameDropdown, #venueAddressDropdown').on('keyup', function () {
+                var value = $(this).val().toLowerCase();
+                var dropdownMenu = $(this).next('.dropdown-menu');
+                dropdownMenu.children('.dropdown-item').filter(function () {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+                });
+            });
+
+            $(document).on('click', '.dropdown-item', function () {
+                var text = $(this).text();
+                var input = $(this).closest('.dropdown').find('.dropdown-toggle');
+                input.val(text);
+                input.dropdown('toggle');
+            });
+
+            // Initialize Select2 for crew type and employee dropdowns
+            $('#crew_type').select2({
+                placeholder: "Select Crew Type",
+                allowClear: true
+            });
+
+            $('#employee').select2({
+                placeholder: "Select Employee Name",
+                allowClear: true
+            });
+
+            // Status dropdown change event
+            $('#status').change(function () {
+                var selectedValue = $(this).val();
+                if (selectedValue === "Quotation") {
+                    $('#quotation-fields').show();
+                    $('#prepsheet-fields').hide();
+                } else if (selectedValue === "Prepsheet") {
+                    $('#quotation-fields').hide();
+                    $('#prepsheet-fields').show();
+                    fetchEmployeeNames();
+                } else {
+                    $('#quotation-fields').hide();
+                    $('#prepsheet-fields').hide();
+                }
+            });
+
+            function fetchEmployeeNames() {
+                $.ajax({
+                    url: '/get_employee_name/',
+                    type: 'GET',
+                    success: function (response) {
+                        var employeeDropdown = $('#employee');
+                        employeeDropdown.empty();
+                        employeeDropdown.append('<option value="" data-display="Select">Select</option>');
+                        response.employee_names.forEach(function (employee) {
+                            employeeDropdown.append('<option value="' + employee.name + '">' + employee.name + '</option>');
+                        });
+                        employeeDropdown.trigger('change');
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Failed to fetch employee names:', error);
+                    }
+                });
+            }
+
+            // Close form button functionality
+            $('#closeFormBtn').click(function () {
+                $('#editJobsModal').modal('hide');
+            });
+        });
+    </script>
+    <style>
+        .dropdown-item {
+            width: 370px; /* Set a fixed width for dropdown items */
+            white-space: normal; /* Allow text to wrap */
+            overflow: hidden; /* Hide overflow text */
+            text-overflow: ellipsis; /* Add ellipsis for overflowing text */
+            word-wrap: break-word; /* Break long words */
+        }
+
+        .spaced-btn {
+            margin-right: 10px;
+        }
+
+        /* Remove the margin from the last button if needed */
+        .spaced-btn:last-child {
+            margin-right: 0;
+        }
+
+    </style>
+    <body>
+
+    <!--*******************
+        Preloader start
+    ********************-->
+    <div id="preloader">
+        <div class="lds-ripple">
+            <div></div>
+            <div></div>
+        </div>
+    </div>
+    <!--*******************
+        Preloader end
+    ********************-->
+
+    <!--**********************************
+        Main wrapper start
+    ***********************************-->
+    <div id="main-wrapper">
+        <!--**********************************
+            Nav header start
+        ***********************************-->
+        {% include 'product_tracking/navheader.html' %}
+        <!--**********************************
+            Nav header end
+        ***********************************-->
+
+        <!--**********************************
+                    Header start
+        ***********************************-->
+        {% include 'product_tracking/header.html' %}
+        <!--**********************************
+                    Header end
+        ***********************************-->
+
+        <!--**********************************
+            Sidebar start
+        ***********************************-->
+        {% include 'product_tracking/sidebar.html' %}
+        <!--**********************************
+            Sidebar end
+        ***********************************-->
+
+        <!--**********************************
+            Content body start
+        ***********************************-->
+        <div class="content-body">
+            <!-- row -->
+            <div class="page-titles">
+                <ol class="breadcrumb">
+                    <li><h5 class="bc-title">Order book</h5></li>
+                    <li class="breadcrumb-item"><a href="javascript:void(0)">
+                        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.125 6.375L8.5 1.41667L14.875 6.375V14.1667C14.875 14.5424 14.7257 14.9027 14.4601 15.1684C14.1944 15.4341 13.8341 15.5833 13.4583 15.5833H3.54167C3.16594 15.5833 2.80561 15.4341 2.53993 15.1684C2.27426 14.9027 2.125 14.5424 2.125 14.1667V6.375Z"
+                                  stroke="#2C2C2C" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6.375 15.5833V8.5H10.625V15.5833" stroke="#2C2C2C" stroke-linecap="round"
+                                  stroke-linejoin="round"/>
+                        </svg>
+                        Home </a>
+                    </li>
+                    <!-- <li class="breadcrumb-item active"><a href="javascript:void(0)">Task</a></li> -->
+                </ol>
+                <a class="btn btn-primary btn-sm" data-bs-toggle="offcanvas" href="#offcanvasExample" role="button"
+                   aria-controls="offcanvasExample">+ Add Jobs</a>
+            </div>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Orders Summary</h5>
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box  icon-box-sm task-tab me-2">
+                            <a href="{% url 'task' %}">
+                                <svg width="20" height="20" viewBox="0 0 21 21" fill="none"
+                                     xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8.50032 3H2.66699V8.83333H8.50032V3Z" stroke="white" stroke-width="1.5"
+                                          stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M17.6668 3H11.8335V8.83333H17.6668V3Z" stroke="white" stroke-width="1.5"
+                                          stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M17.6668 12.1667H11.8335V18H17.6668V12.1667Z" stroke="white"
+                                          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M8.50032 12.1667H2.66699V18H8.50032V12.1667Z" stroke="white"
+                                          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-xl-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row task">
+                                    <div class="col-xl-3 col-sm-4 col-6">
+                                        <div class="task-summary">
+                                            <div class="d-flex align-items-baseline">
+                                                <h2 class="text-primary count" id="quatation-count">0</h2>
+                                                <span>Number of jobs for Quatation</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-3 col-sm-4 col-6">
+                                        <div class="task-summary">
+                                            <div class="d-flex align-items-baseline">
+                                                <h2 class="text-purple count" id="perfoma-count">0</h2>
+                                                <span>Number of jobs for Perfoma</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-3 col-sm-4 col-6">
+                                        <div class="task-summary">
+                                            <div class="d-flex align-items-baseline">
+                                                <h2 class="text-primary count" id="prepsheet-count">0</h2>
+                                                <span>Number of jobs for Prepsheet</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-3 col-sm-4 col-6">
+                                        <div class="task-summary">
+                                            <div class="d-flex align-items-baseline">
+                                                <h2 class="text-success count" id="DeliveryChallan-count">0</h2>
+                                                <span>Completed</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="card-title mb-0">Task</h4>
+                        </div><!-- end card header -->
+
+                        <div class="card-body">
+                            <div class="table-responsive table-card">
+                                <table class="table primary-table-bordered"
+                                       id="contact-table">
+                                    <thead class="thead-primary" style="text-align: center;">
+                                    <tr>
+                                        <th scope="col" style="width: 15px;">SR NO</th>
+                                        <th scope="col">Job No</th>
+                                        <th scope="col">Title</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="category-table-body" style="text-align: center;">
+
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div><!-- end card-body -->
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div id="pagination-count" style="padding: 10px;">Showing 0 to 0 of 0 entries</div>
+                            <div style="padding-bottom: 10px;margin: 5px;">
+                                <button id="prev-page-btn" class="btn btn-primary me-2">Previous</button>
+                                <button id="next-page-btn" class="btn btn-primary">Next</button>
+                            </div>
+                        </div>
+                    </div><!-- end card -->
+                </div>
+
+            </div>
+        </div>
+        <!--**********************************
+            Content body end
+        ***********************************-->
+
+        <!--**********************************
+                Add Content start
+        ***********************************-->
+        <div class="offcanvas offcanvas-end customeoff" tabindex="-1" id="offcanvasExample">
+            <div class="offcanvas-header">
+                <h5 class="modal-title" id="#gridSystemModal">Add Jobs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="offcanvas-body">
+                <form action="{% url 'add_job' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-xl-6 mb-3">
+                            <label for="titleInput" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="titleInput" name="title" required>
+                        </div>
+                        <div class="col-xl-6 mb-3">
+                            <div class="dropdown">
+                                <label for="clientNameDropdown" class="form-label">Client Name</label>
+                                <input type="text" class="form-control dropdown-toggle" id="clientNameDropdown"
+                                       data-bs-toggle="dropdown" aria-expanded="false"
+                                       placeholder="Select Client Name" autocomplete="off" name="client_name">
+                                <ul class="dropdown-menu" aria-labelledby="clientNameDropdown">
+                                    <!-- Dynamic options will be appended here -->
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-xl-6 mb-3">
+                            <div class="dropdown">
+                                <label for="venueAddressDropdown" class="form-label">Venue</label>
+                                <input type="text" class="form-control dropdown-toggle" id="venueAddressDropdown"
+                                       data-bs-toggle="dropdown" aria-expanded="false"
+                                       placeholder="Select Venue Address" autocomplete="off" name="venue_address">
+                                <ul class="dropdown-menu" aria-labelledby="venueAddressDropdown" id="dropdown-item">
+                                    <!-- Dynamic options will be appended here -->
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-xl-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="default-select form-control" id="status" name="status">
+                                <option value="" data-display="Select">Select</option>
+                                <option value="Quotation">Quotation</option>
+                                <option value="Perfoma">Perfoma</option>
+                                <option value="Prepsheet">Prepsheet</option>
+                                <option value="Delivery Challan">Delivery Challan</option>
+                            </select>
+                        </div>
+                        <div class="row" id="quotation-fields" style="display: none;">
+                            <div class="col-xl-6 mb-3" style="width: 390px;">
+                                <label class="form-label">Crew Type</label>
+                                <select class="default-select form-control" id="crew_type" name="crew_type"
+                                        multiple="multiple">
+                                    <option value="A1">A1</option>
+                                    <option value="A2">A2</option>
+                                    <option value="A3">A3</option>
+                                </select>
+                            </div>
+                            <div class="col-xl-6 mb-3" style="padding-left: 16px;width: 371px;padding-right: 0px;">
+                                <label class="form-label">Number of Containers</label>
+                                <input type="text" class="form-control" id="input-box" name="no_of_container">
+                            </div>
+                        </div>
+                        <div class="row" id="prepsheet-fields" style="display: none;">
+                            <div class="col-xl-6 mb-3" style="width: 390px;">
+                                <label class="form-label">Employee</label>
+                                <select class="default-select form-control" id="employee"
+                                        name="prep_sheet" multiple="multiple">
+                                    <option value="" data-display="Select">Select</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="prepDate" class="form-label">Setup Date</label>
+                            <input type="date" class="form-control" id="prepDate" name="setup_date" required>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="outDate" class="form-label">Rehearsal Date</label>
+                            <input type="date" class="form-control" id="outDate" name="rehearsal_date" required>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="showStart" class="form-label">Show Start Date</label>
+                            <input type="date" class="form-control" id="showStart" name="start_date" required>
+                        </div>
+                        <div class="col-xl-3 mb-3">
+                            <label for="showEnd" class="form-label">Show End Date</label>
+                            <input type="date" class="form-control" id="showEnd" name="end_date" required>
+                        </div>
+                        <div id="table-container">
+                            <table id="equipment-table" class="table">
+                                <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Equipment Name</th>
+                                    <th>Quantity</th>
+                                    <th>Number of Days</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <!-- Rows will be dynamically added here -->
+                                </tbody>
+                            </table>
+                            <button id="add-row-btn" class="btn btn-primary">Add</button>
+                        </div>
+                    </div>
+                    <br/>
+                    <div>
+                        <button class="btn btn-primary me-1">Submit</button>
+                        <button class="btn btn-danger light ms-1" id="cancelButton">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!--**********************************
+               Edit Form Start
+        ***********************************-->
+        <!-- Edit Jobs Details -->
+        <div class="modal fade" id="editJobsModal" tabindex="-1" role="dialog"
+             aria-labelledby="editJobsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editJobsModalLabel">Edit Jobs</h5>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Category Model Form -->
+                        <form id="editJobsForm">
+
+                            <div class="row">
+                                <div class="col-xl-4 mb-3">
+                                    <label for="editJobsReferenceNo">Job No</label>
+                                    <input type="text" class="form-control" id="editJobsReferenceNo"
+                                           name="jobReferenceNo">
+                                </div>
+                                <div class="col-xl-4 mb-3">
+                                    <label for="editJobsTitle" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="editJobsTitle" name="title">
+                                </div>
+                                <div class="col-xl-4 mb-3">
+                                    <label for="editJobsStatus">Status</label>
+                                    <select class="default-select form-control" id="editJobsStatus"
+                                            name="status">
+                                        <option value="Quotation">Quotation</option>
+                                        <option value="Perfoma">Perfoma</option>
+                                        <option value="Prepsheet">Prepsheet</option>
+                                        <option value="Delivery Challan">Delivery Challan</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="editJobsId" class="pagination-count">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="closeFormBtn">Close</button>
+                        <button type="button" class="btn btn-primary" id="saveChangesBtn">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--**********************************
+            Footer start
+        ***********************************-->
+        {% include 'product_tracking/footer.html' %}
+        <!--**********************************
+            Footer end
+        ***********************************-->
+
+    </div>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet"/>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+    {#    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">#}
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    {#    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/5.1.3/js/bootstrap.min.js"></script>#}
+
+
+    <!--**********************************
+    Main wrapper end
+    ***********************************-->
+
+    <!--**********************************
+        Scripts
+    ***********************************-->
+    {#    <script>#}
+    {#        $(document).ready(function () {#}
+    {##}
+    {#            var counters = $(".count");#}
+    {#            var countersQuantity = counters.length;#}
+    {#            var counter = [];#}
+    {##}
+    {#            for (i = 0; i < countersQuantity; i++) {#}
+    {#                counter[i] = parseInt(counters[i].innerHTML);#}
+    {#            }#}
+    {##}
+    {#            var count = function (start, value, id) {#}
+    {#                var localStart = start;#}
+    {#                setInterval(function () {#}
+    {#                    if (localStart < value) {#}
+    {#                        localStart++;#}
+    {#                        counters[id].innerHTML = localStart;#}
+    {#                    }#}
+    {#                }, 500);#}
+    {#            }#}
+    {##}
+    {#            for (j = 0; j < countersQuantity; j++) {#}
+    {#                count(0, counter[j], j);#}
+    {#            }#}
+    {#        });#}
+    {#    </script>#}
+
+
+    </body>
+{% endblock %}
