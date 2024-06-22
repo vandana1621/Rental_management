@@ -1,9 +1,25 @@
 {% include 'product_tracking/head.html' %}
 {% load static %}
 {% block content %}
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 
-<link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<style>
+    .equipment_name a {
+        color: #007bff;
+        text-decoration: underline;
+    }
+    .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+    .modal-body {
+        max-height: 300px; /* Adjust this value as needed */
+        overflow-y: auto; /* Enable vertical scrolling */
+    }
+</style>
 <script>
     let currentPage = 1;
     const pageSize = 10;
@@ -20,7 +36,6 @@
 
         function fetchEquipmentList(category) {
             const startIndex = (currentPage - 1) * pageSize;
-
             console.log(`Fetching data for category: ${category}, startIndex: ${startIndex}, pageSize: ${pageSize}`);
 
             $.ajax({
@@ -44,6 +59,7 @@
                 }
             });
         }
+
         function fetchCategories() {
             $.ajax({
                 url: '/category_dropdown/',
@@ -51,12 +67,10 @@
                 success: function (data) {
                     console.log('Categories:', data);
                     $('#categoryDropdown').empty();
-                    //$('#categoryDropdown').append('<option value="">Select category</option>');  // Default option
                     $.each(data.categories, function (index, category) {
                         $('#categoryDropdown').append('<option value="' + category.id + '">' + category.name + '</option>');
                     });
 
-                    // Automatically select the first category and fetch equipment list
                     if (data.categories.length > 0) {
                         const firstCategoryId = data.categories[0].id;
                         $('#categoryDropdown').val(firstCategoryId).change();
@@ -76,10 +90,10 @@
                     '<td>' + (index + 1) + '</td>' +
                     '<td>' + equipment.category_type + '</td>' +
                     '<td>' + equipment.sub_category_name + '</td>' +
-                    '<td>' + equipment.equipment_name + '</td>' +
+                    '<td class="equipment_name"><a href="#" onclick="fetchDetails(this)" data-equipment-name="' + equipment.equipment_name + '">' + equipment.equipment_name + '</a></td>' +
                     '<td>' + equipment.total_units + '</td>' +
-                    '<td>' + equipment.unit_price + '</td>' +
                     '<td>' + equipment.rental_price + '</td>' +
+                    '<td>' + equipment.unit_price + '</td>' +
                     '</tr>';
                 $('#category-table-body').append(row);
             });
@@ -126,11 +140,51 @@
         });
 
         fetchEquipmentList($('#categoryDropdown').val());
+
+        $('.btn-secondary').on('click', function () {
+            $('#equipmentDetailsModal').modal('hide');
+        });
     });
+
+    function fetchDetails(element) {
+        var equipmentName = $(element).data('equipment-name');
+        $.ajax({
+            type: "GET",
+            url: "/fetch_stock_details_by_name/",
+            data: {
+                equipment_name: equipmentName
+            },
+            success: function (data) {
+                console.log('function success');
+                if (data.length > 0) {
+                    var detailsHTML = '';
+                    data.forEach(function (item) {
+                        detailsHTML += "<tr>";
+                        detailsHTML += "<td>" + item.vendor_name + "</td>";
+                        detailsHTML += "<td>" + item.serial_number + "</td>";
+                        detailsHTML += "<td>" + item.barcode_number + "</td>";
+                        detailsHTML += "<td>" + item.unit_price + "</td>";
+                        detailsHTML += "<td>" + item.rental_price + "</td>";
+                        detailsHTML += "<td>" + item.purchase_date + "</td>";
+                        detailsHTML += "<td>" + item.reference_no + "</td>";
+                        detailsHTML += "</tr>";
+                    });
+
+                    $('#equipmentDetailsBody').html(detailsHTML);
+                    $('#equipmentDetailsModal').modal('show');
+                } else {
+                    alert("No details found for the equipment name.");
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error("Error fetching data:", error);
+            }
+        });
+    }
 </script>
 
-<body data-typography="poppins" data-theme-version="light" data-layout="vertical" data-nav-headerbg="black" data-headerbg="color_1">
-
+<body data-typography="poppins" data-theme-version="light" data-layout="vertical" data-nav-headerbg="black"
+      data-headerbg="color_1">
 <div id="preloader">
     <div class="lds-ripple">
         <div></div>
@@ -155,7 +209,8 @@
                                     <label for="name" class="card-title mb-0">Category:</label>
                                 </div>
                                 <div class="col-auto">
-                                    <select class="form-select btn-sm me-1" aria-label="Default select example" id="categoryDropdown" style="width: 140px;">
+                                    <select class="form-select btn-sm me-1" aria-label="Default select example"
+                                            id="categoryDropdown" style="width: 140px;">
                                         <option value="">Select category</option>
                                         <option value="Audio">Audio</option>
                                         <option value="Lights">Lights</option>
@@ -168,15 +223,15 @@
                             <div class="table-responsive table-card">
                                 <table class="table primary-table-bordered" id="contact-table">
                                     <thead class="thead-primary" style="text-align: center;">
-                                        <tr>
-                                            <th scope="col">SR NO</th>
-                                            <th scope="col">Category</th>
-                                            <th scope="col">Sub Category</th>
-                                            <th scope="col">Equipment Name</th>
-                                            <th scope="col">Current Qty</th>
-                                            <th scope="col">Rental Price</th>
-                                            <th scope="col">Purchase Price</th>
-                                        </tr>
+                                    <tr>
+                                        <th scope="col">SR NO</th>
+                                        <th scope="col">Category</th>
+                                        <th scope="col">Sub Category</th>
+                                        <th scope="col">Equipment Name</th>
+                                        <th scope="col">Current Qty</th>
+                                        <th scope="col">Rental Price</th>
+                                        <th scope="col">Purchase Price</th>
+                                    </tr>
                                     </thead>
                                     <tbody id="category-table-body" style="text-align: center;">
                                     </tbody>
@@ -194,10 +249,46 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        {% include 'product_tracking/footer.html' %}
+    {% include 'product_tracking/footer.html' %}
+
+    <div class="modal fade" id="equipmentDetailsModal" tabindex="-1" role="dialog"
+         aria-labelledby="equipmentDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="equipmentDetailsModalLabel">Stock Details</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table primary-table-bordered" id="contact-table">
+                            <thead class="thead-primary" style="text-align: center;">
+                            <tr>
+                                <th>Vendor Name</th>
+                                <th>Serial Number</th>
+                                <th>Barcode Number</th>
+                                <th>Unit Price</th>
+                                <th>Rental Price</th>
+                                <th>Purchase Date</th>
+                                <th>Reference No</th>
+                            </tr>
+                            </thead>
+                            <tbody id="equipmentDetailsBody">
+                                <!-- Equipment details will be inserted here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 </body>
-
 {% endblock %}

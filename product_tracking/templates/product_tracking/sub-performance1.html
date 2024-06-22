@@ -3,7 +3,7 @@
 {% block content %}
     <style>
     .subcategory-name a{
-        color: #007bff; /* Change this to the color you want */
+        color: #0D99FF; /* Change this to the color you want */
         text-decoration: underline; /* Optional: underline the links */
     }
 
@@ -59,7 +59,6 @@ $(document).ready(function () {
                 '<td style="display: none;">' + subcategory.id + '</td>' +
                 '<td class="subcategory-name" data-subcategory-id="' + subcategory.id + '"><a href="#">' + subcategory.name + '</a></td>' +
                 '<td>' + subcategory.category_name + '</td>' +
-                '<td>' + (subcategory.status ? 'Active' : 'Inactive') + '</td>' +
                 '<td>' + subcategory.created_by + '</td>' +
                 '<td>' + subcategory.created_date + '</td>' +
                 '<td><button class="btn btn-sm btn-primary edit-btn me-2"><i class="fa fa-pencil"></i></button><button class="btn btn-sm btn-danger delete-btn"><i class="fa fa-trash"></i></button></td>' +
@@ -111,16 +110,16 @@ $(document).ready(function () {
         var row = $(this).closest('tr');
         var subcategoryId = row.find('td:eq(1)').text().trim();
         var subcategoryName = row.find('td:eq(2)').text().trim();
-        var statusText = row.find('td:eq(3)').text().trim() === 'Active' ? '1' : '0';
+        //var statusText = row.find('td:eq(3)').text().trim() === 'Active' ? '1' : '0';
 
         console.log("Subcategory Id:", subcategoryId);
         console.log("Subcategory Name:", subcategoryName);
-        console.log("Retrieved Status:", statusText);
+        //console.log("Retrieved Status:", statusText);
 
         // Populate modal with subcategory data
         $('#editCategoryId').val(subcategoryId);
         $('#editCategoryName').val(subcategoryName);
-        $('#editCategoryStatus').val(statusText).change();
+        //$('#editCategoryStatus').val(statusText).change();
 
         // Show edit modal
         $('#editCategoryModal').modal('show');
@@ -159,14 +158,14 @@ $(document).ready(function () {
     function updateSubCategoryInDatabase() {
         var subcategoryId = $('#editCategoryId').val();
         var subcategoryName = $('#editCategoryName').val().trim();
-        var statusText = $('#editCategoryStatus').val();
+        //var statusText = $('#editCategoryStatus').val();
 
-        console.log("Status Text:", statusText);
+        //console.log("Status Text:", statusText);
 
         var formData = {
             'csrfmiddlewaretoken': getCookie('csrftoken'),
             'categoryName': subcategoryName,
-            'statusText': statusText
+            //'statusText': statusText
         };
 
         $.ajax({
@@ -177,6 +176,7 @@ $(document).ready(function () {
                 if (response.message) {
                     fetchSubCategoryList();
                     $('#editCategoryModal').modal('hide');
+                    location.reload();
                 } else {
                     console.error('Error updating subcategory:', response.error);
                 }
@@ -202,6 +202,7 @@ $(document).ready(function () {
                 },
                 success: function (response) {
                     fetchSubCategoryList();
+                    location.reload();
                 },
                 error: function (xhr, status, error) {
                     console.error('Error deleting subcategory:', error);
@@ -335,7 +336,6 @@ $(document).ready(function () {
                                         <th>SR NO</th>
                                         <th>Sub Category Name</th>
                                         <th>Category Name</th>
-                                        <th>Status</th>
                                         <th>Created By</th>
                                         <th>Created Date</th>
                                         <th>Action</th>
@@ -377,15 +377,6 @@ $(document).ready(function () {
                             <div class="form-group">
                                 <label for="editCategoryName">Sub Category Name</label>
                                 <input type="text" class="form-control" id="editCategoryName" name="editCategoryName">
-                            </div>
-                            <div class="form-group">
-                                <label for="editCategoryStatus">Status</label>
-                                <select class="default-select form-control" id="editCategoryStatus"
-                                        name="editCategoryStatus">
-                                    <option data-display="Select">Status</option>
-                                    <option value="1">Active</option>
-                                    <option value="0">Inactive</option>
-                                </select>
                             </div>
                             <input type="hidden" id="editCategoryId" class="pagination-count">
                         </form>

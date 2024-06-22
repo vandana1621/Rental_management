@@ -1,166 +1,106 @@
-function fullCalender() {
-      /* initialize the external events
-        -----------------------------------------------------------------*/
+$(document).ready(function () {
+    console.log("Document is ready");
 
-      var containerEl = document.getElementById('external-events');
-      if ($('#external-events').length > 0) {
-        new FullCalendar.Draggable(containerEl, {
-          itemSelector: '.external-event',
-          eventData: function (eventEl) {
-            return {
-              title: eventEl.innerText.trim()
-            }
-          }
-        });
-      }
+    var calendarEl = document.getElementById('calendar');
+    var currentDate = new Date();
 
-      /* initialize the calendar
-        -----------------------------------------------------------------*/
-
-      var calendarEl = document.getElementById('calendar');
-      var calendar = new FullCalendar.Calendar(calendarEl, {
+    var calendar = new FullCalendar.Calendar(calendarEl, {
         headerToolbar: {
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
         },
-
+        initialView: 'dayGridMonth',
+        initialDate: currentDate.toISOString().substring(0, 10),
+        events: '/get_events/',
         selectable: true,
         selectMirror: true,
+        editable: true,
+        droppable: true,
         select: function (arg) {
-          // Show modal
-          $('#eventModal').modal('show');
+            console.log("Select function called with arg:", arg);
 
-          // Set start and end date inputs
-          $('#eventStart').val(arg.startStr);
-          $('#eventEnd').val(arg.endStr);
+            let startDate = arg.startStr;
+            let endDate = arg.endStr ? arg.endStr : arg.startStr;
 
-          // Show or hide start/end date fields based on selection
-          if (arg.startStr === arg.endStr) {
-            $('#eventStartEndGroup').hide();
-          } else {
-            $('#eventStartEndGroup').show();
-          }
+            console.log("Raw Selected Dates - Start:", startDate, "End:", endDate);
 
-          // Save event on button click
-          $('#saveEvent').off('click').on('click', function () {
-            var title = $('#eventTitle').val();
-            var description = $('#eventDescription').val();
-            var location = $('#eventLocation').val();
-            var start = $('#eventStart').val();
-            var end = $('#eventEnd').val();
-
-            if (title) {
-              calendar.addEvent({
-                title: title,
-                start: arg.startStr,
-                end: arg.endStr,
-                allDay: arg.allDay,
-                extendedProps: {
-                  description: description,
-                  location: location
-                }
-              });
-              $('#eventForm')[0].reset();
-              $('#eventModal').modal('hide');
+            // Adjust end date if only a single day is selected
+            if (!arg.endStr || new Date(endDate).getTime() === new Date(startDate).getTime() + 24 * 60 * 60 * 1000) {
+                endDate = startDate;
             }
-          });
 
-          calendar.unselect();
-        },
+            console.log("Adjusted Dates - Start:", startDate, "End:", endDate);
 
-        editable: true,
-        droppable: true, // this allows things to be dropped onto the calendar
-        drop: function (arg) {
-          // is the "remove after drop" checkbox checked?
-          if (document.getElementById('drop-remove').checked) {
-            // if so, remove the element from the "Draggable Events" list
-            arg.draggedEl.parentNode.removeChild(arg.draggedEl);
-          }
-        },
-        initialDate: '2021-02-13',
-        weekNumbers: true,
-        navLinks: true, // can click day/week names to navigate views
-        editable: true,
-        selectable: true,
-        nowIndicator: true,
-        events: [
-          {
-            title: 'All Day Event',
-            start: '2021-02-01'
-          },
-          {
-            title: 'Long Event',
-            start: '2021-02-07',
-            end: '2021-02-10',
-            className: "bg-danger"
-          },
-          {
-            groupId: 999,
-            title: 'Repeating Event',
-            start: '2021-02-09T16:00:00'
-          },
-          {
-            groupId: 999,
-            title: 'Repeating Event',
-            start: '2021-02-16T16:00:00'
-          },
-          {
-            title: 'Conference',
-            start: '2021-02-11',
-            end: '2021-02-13',
-            className: "bg-danger"
-          },
-          {
-            title: 'Lunch',
-            start: '2021-02-12T12:00:00'
-          },
-          {
-            title: 'Meeting',
-            start: '2021-04-12T14:30:00'
-          },
-          {
-            title: 'Happy Hour',
-            start: '2021-07-12T17:30:00'
-          },
-          {
-            title: 'Dinner',
-            start: '2021-02-12T20:00:00',
-            className: "bg-warning"
-          },
-          {
-            title: 'Birthday Party',
-            start: '2021-02-13T07:00:00',
-            className: "bg-secondary"
-          },
-          {
-            title: 'Click for Google',
-            url: 'http://google.com/',
-            start: '2021-02-28'
-          }
-        ],
-        eventDidMount: function (info) {
-          // Customize the tooltip content to show extendedProps
-          if (info.event.extendedProps.description) {
-            var tooltipContent = 'Description: ' + info.event.extendedProps.description + '<br>';
-            if (info.event.extendedProps.location) {
-              tooltipContent += 'Location: ' + info.event.extendedProps.location;
+            // Validate date selection
+            if (!startDate || !endDate) {
+                $('#errorMessage').text("Invalid date selection. Please select a valid date range.");
+                $('#errorModal').modal('show');
+                return;
             }
-            var tooltip = new Tooltip(info.el, {
-              title: tooltipContent,
-              html: true,
-              placement: 'top',
-              trigger: 'hover',
-              container: 'body'
-            });
-          }
+
+            // Set dates to hidden fields and log to ensure they are set correctly
+            $('#startDate').val(startDate);
+            $('#endDate').val(endDate);
+            console.log("Form startDate value set to:", $('#startDate').val());
+            console.log("Form endDate value set to:", $('#endDate').val());
+
+            if ($('#startDate').val() && $('#endDate').val()) {
+                $('#eventModal').modal('show');
+            } else {
+                console.log("Dates are not set correctly.");
+            }
+        },
+        eventClick: function (info) {
+            console.log("Event click function called");
+
+            $('#action').val('READ');
+            $('#event_id').val(info.event.id);
+            $('#eventVenue').val(info.event.extendedProps.venue);
+            $('#clientName').val(info.event.extendedProps.client_name);
+            $('#personName').val(info.event.extendedProps.person_name);
+            $('#eventModal').modal('show');
         }
-      });
-      calendar.render();
-    }
-
-    jQuery(window).on('load', function () {
-      setTimeout(function () {
-        fullCalender();
-      }, 1000);
     });
+    calendar.render();
+
+    $(document).on('click', '#saveEvent', function () {
+        console.log("Save button clicked");
+
+        // Validate dates are set
+        var startDate = $('#startDate').val();
+        var endDate = $('#endDate').val();
+
+        console.log("startdate:", startDate);
+        console.log("enddate:", endDate);
+
+        if (!startDate || !endDate) {
+            $('#errorMessage').text("Start Date and End Date must be set.");
+            $('#errorModal').modal('show');
+            return;
+        }
+
+        var formData = $('#eventForm').serializeArray();
+        formData.push({name: 'start_date', value: startDate});
+        formData.push({name: 'end_date', value: endDate});
+
+        console.log("Form Data with dates:", formData);
+
+        $.post("{% url 'add_event_view' %}", formData)
+            .done(function (data) {
+                console.log("Response Data:", data);
+                if (data.success) {
+                    $('#eventModal').modal('hide');
+                    calendar.refetchEvents();
+                } else {
+                    $('#errorMessage').text('Error: ' + data.error_message);
+                    $('#errorModal').modal('show');
+                }
+            })
+            .fail(function (error) {
+                console.error("Error:", error);
+                $('#errorMessage').text('An error occurred while saving the event.');
+                $('#errorModal').modal('show');
+            });
+    });
+});
